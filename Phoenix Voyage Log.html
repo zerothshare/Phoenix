@@ -1,0 +1,1711 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Phoenix Voyage Log</title>
+<style>
+/* layout: header stat strip (voyage vitals) stacked above a reverse-chronological
+   log of entry cards; each card is a nav-table + narrative, logbook style */
+:root{
+  --bg:#0b1420; --surface:#121f2f; --surface-2:#1a2c40;
+  --fg:#e8edf2; --muted:#8fa3b5; --accent:#e0a458; --accent-2:#5fb3a3;
+  --border:rgba(255,255,255,.1); --good:#6fcf97; --warn:#e0a458;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f3efe3; --surface:#fffdf8; --surface-2:#ece4d0;
+    --fg:#1c2a35; --muted:#5c6b78; --accent:#b4651a; --accent-2:#1f7a68;
+    --border:rgba(20,30,40,.12); --good:#2f8f5b; --warn:#b4651a;
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f3efe3; --surface:#fffdf8; --surface-2:#ece4d0;
+  --fg:#1c2a35; --muted:#5c6b78; --accent:#b4651a; --accent-2:#1f7a68;
+  --border:rgba(20,30,40,.12); --good:#2f8f5b; --warn:#b4651a;
+  color-scheme:light;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--fg);
+  font-family:'Inter',system-ui,sans-serif;
+  padding-inline:20px; padding-block:28px 60px;
+}
+h1,h2,h3{font-family:'Fraunces',Georgia,serif; text-wrap:balance; margin:0}
+.mono{font-family:'IBM Plex Mono',ui-monospace,monospace; font-variant-numeric:tabular-nums}
+.wrap{max-width:760px; margin-inline:auto}
+
+/* ---- header ---- */
+header{margin-bottom:28px}
+.eyebrow{
+  font-family:'IBM Plex Mono',monospace; font-size:.72rem; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent); margin-bottom:8px;
+}
+h1{font-size:2.1rem; font-weight:600; line-height:1.1; color:var(--fg)}
+.subtitle{color:var(--muted); font-size:.95rem; margin-top:6px; max-width:60ch}
+
+.stats{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+  gap:1px; background:var(--border); border:1px solid var(--border);
+  border-radius:10px; overflow:hidden; margin-top:22px;
+}
+.stat{background:var(--surface); padding:14px 16px}
+.stat .label{font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
+.stat .value{font-family:'IBM Plex Mono',monospace; font-size:1.3rem; font-weight:600; margin-top:4px; font-variant-numeric:tabular-nums}
+.stat .unit{font-size:.75rem; color:var(--muted); font-weight:400}
+
+/* ---- log ---- */
+.log-head{
+  display:flex; align-items:baseline; justify-content:space-between;
+  margin:36px 0 14px; padding-bottom:8px; border-bottom:1px solid var(--border);
+}
+.log-head h2{font-size:1.1rem; color:var(--fg)}
+.log-head span{font-size:.78rem; color:var(--muted); font-family:'IBM Plex Mono',monospace}
+
+.entry{
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  padding:18px 20px; margin-bottom:16px;
+}
+.entry-top{
+  display:flex; flex-wrap:wrap; gap:8px 16px; align-items:baseline;
+  justify-content:space-between; margin-bottom:12px;
+}
+.entry-date{font-family:'Fraunces',serif; font-size:1.15rem; font-weight:600}
+.entry-tag{
+  font-family:'IBM Plex Mono',monospace; font-size:.7rem; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--accent); border:1px solid var(--accent);
+  border-radius:20px; padding:2px 10px; white-space:nowrap;
+}
+.entry-pos{font-family:'IBM Plex Mono',monospace; font-size:.85rem; color:var(--muted); margin-bottom:14px}
+
+.grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr));
+  gap:10px; margin-bottom:14px;
+}
+.cell{background:var(--surface-2); border-radius:8px; padding:9px 11px; min-width:0}
+.cell .k{font-size:.66rem; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
+.cell .v{font-family:'IBM Plex Mono',monospace; font-size:1rem; margin-top:2px; font-variant-numeric:tabular-nums}
+.cell .v.good{color:var(--good)}
+.cell .d{font-family:'IBM Plex Mono',monospace; font-size:.72rem; margin-top:3px; font-variant-numeric:tabular-nums; color:var(--muted)}
+.cell .d.up{color:var(--accent-2)}
+.cell .d.down{color:var(--warn)}
+
+.narrative{font-size:.92rem; line-height:1.6; color:var(--fg)}
+.narrative p{margin:0 0 10px}
+.narrative p:last-child{margin-bottom:0}
+.narrative b{color:var(--accent-2)}
+
+.delta{
+  display:flex; gap:18px; flex-wrap:wrap; margin-top:14px; padding-top:12px;
+  border-top:1px dashed var(--border); font-size:.82rem; color:var(--muted);
+}
+.delta b{color:var(--fg); font-family:'IBM Plex Mono',monospace}
+
+footer{
+  margin-top:40px; padding-top:18px; border-top:1px solid var(--border);
+  font-size:.78rem; color:var(--muted); line-height:1.6;
+}
+footer b{color:var(--fg)}
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Solo &middot; Nonstop &middot; Unassisted &middot; Sail</div>
+    <h1>Phoenix do Mar</h1>
+    <div class="subtitle">Tracking Oliver Widger's solo, nonstop, unassisted circumnavigation sail aboard a Pacific Seacraft 40 &mdash; logged from live telemetry snapshots and cross-checked against NWS/NDBC/OPC marine observations and public AIS. No press coverage, just the numbers.</div>
+
+    <div class="stats" style="flex-wrap:wrap">
+      <div class="stat"><div class="label">Departed</div><div class="value" style="font-size:1rem">Oct 3, 2:00 PM</div><div class="unit">Neah Bay, WA</div></div>
+      <div class="stat"><div class="label">Days at Sea</div><div class="value">21.38</div></div>
+      <div class="stat"><div class="label">Distance Run</div><div class="value">2619.3<span class="unit"> nm</span></div></div>
+      <div class="stat"><div class="label">Last Position</div><div class="value" style="font-size:.95rem">10&deg;23.389'N<br>119&deg;31.146'W</div></div>
+      <div class="stat"><div class="label">Avg Speed (voyage)</div><div class="value">5.10<span class="unit"> kt</span></div></div>
+      <div class="stat"><div class="label">Journey Max Speed</div><div class="value">14.5<span class="unit"> kt</span></div></div>
+      <div class="stat"><div class="label">7d Avg</div><div class="value">3.3<span class="unit"> kt</span></div></div>
+      <div class="stat"><div class="label">Avg Distance / Day</div><div class="value">122.5<span class="unit"> nm</span></div></div>
+    </div>
+
+    <div class="narrative" style="margin-top:18px; padding-top:16px; border-top:1px solid var(--border)">
+      <p><b>The boat.</b> <i>Phoenix do Mar</i> is a 1998 Pacific Seacraft 40 (Crealock design) &mdash; 42'2" LOA, 24,000 lb displacement, 8,600 lb ballast, cutter rig, full keel, canoe stern. Rebuilt in Port Townsend, WA before departure. This is a heavy-displacement bluewater cruiser built for seaworthiness and motion comfort over speed, not a planing offshore racer &mdash; theoretical hull speed &mdash; a limit on speed <i>through the water</i>, not speed over ground &mdash; is roughly 7&ndash;7.5 kt. Speed through the water (STW) in the 5&ndash;6 kt range in moderate breeze represents efficient sailing for this hull. Speed over ground (SOG) can run higher any time current or wave push adds to it, which this log tracks separately via the SOG/STW gap. That distinction matters for every speed/pace judgment in this log.</p>
+      <p><b>The voyage.</b> Oliver Widger's stated goal is a ~30,000 nm solo, nonstop, unassisted circumnavigation sail, self-targeted at roughly 8&ndash;9 months, by way of the doldrums, the South Atlantic/Pacific westerlies, and a Cape Horn rounding. His longest prior offshore passage was a month-long Oregon&ndash;Hawaii solo trip in 2025. He shoved off his home dock, Point Hudson Marina in Port Townsend, on Oct 2 and held overnight in Neah Bay, at the mouth of the Strait of Juan de Fuca, before getting underway outbound at 2:00 PM Oct 3 &mdash; <b>this log treats Neah Bay/Oct 3 2:00 PM as Day 0</b>, since that's the open-water start line he appears to be using himself, rather than the dock departure the day before.</p>
+    </div>
+  </header>
+
+  <div class="log-head">
+    <h2>Voyage Log</h2>
+    <span>newest first</span>
+  </div>
+
+  <!-- ENTRY 42 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Sat Oct 24 &mdash; 18:59Z &middot; 10:59 local (UTC&minus;8, est.)</div>
+      <div class="entry-tag">Day 21 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">10&deg;56.986' N &nbsp;119&deg;42.583' W &nbsp;&middot;&nbsp; closing fast on the ITCZ, Hurricane Vance active to the SE</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 23, 16:00Z &middot; 26h59m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">3.1 kt<br><span style="font-size:.8em;opacity:.75">holding</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">161.6&deg;<br><span style="font-size:.8em;opacity:.75">swung 23.1&deg; to port</span></div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">85.9 nm<br><span style="color:#2e7d32;font-size:.8em">&#9650; 22.1</span> / 3.7 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">3.3 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 0.5</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">5.3 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 0.9</span></div></div>
+    </div>
+
+    <div class="narrative">
+      <p>Real improvement since the last reading &mdash; 24h run up sharply, course settled back onto a steadier southbound line. Still light by pre-doldrums standards, but a clear step up from the stalled, wandering pattern of the last several entries.</p>
+      <p><b>Weather check (confirmed current, issued 1745 UTC today) &mdash; both watches have sharpened:</b> <b>Hurricane Vance</b> has intensified to <b>90kt sustained</b> (970mb), now near 12.9&deg;N 103.0&deg;W, moving NNW at 5kt &mdash; forecast to hold near major strength through 48h (85kt, 16.0&deg;N 104.3&deg;W). Distance from Phoenix: <b>~988 nm</b> now, ~949 nm at her 48h position &mdash; closing steadily but still outside her tropical-storm-force wind radius (110&ndash;130 nm) by a wide margin. Separately, and more immediately relevant to day-to-day sailing: the <b>ITCZ/monsoon trough</b> has resumed on Vance's SW side and now passes close to Phoenix's longitude &mdash; only <b>~358 nm</b> south. The doldrums crossing is becoming the nearer-term event of the two.</p>
+      <p><b>AIS check:</b> no independent hit, consistent with prior entries.</p>
+      <p><b>Voyage distance (odometer method):</b> 14,688.0 &minus; 12,104.7 baseline = <b>2,583.3 nm over 502h12m, avg 5.14 kt</b> (Day 20.93). Leg since the prior reading: <b>93.4 nm over 26h59m, avg 3.46 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+93.4 nm</b> (26h59m, avg 3.46 kt)</span>
+      <span>Since departure: <b>+2,583.3 nm</b></span>
+      <span>Elapsed: <b>502h12m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 43 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Sun Oct 25 &mdash; 05:59Z &middot; 21:59 local solar (UTC&minus;8, std.)</div>
+      <div class="entry-tag">Day 22 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">10&deg;23.389' N &nbsp;119&deg;31.146' W &nbsp;&middot;&nbsp; closing on the ITCZ band, Hurricane Vance holding steady to the east</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 23, 16:00Z &middot; 37h59m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">3.2 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 1.9 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">173.6&deg;<br><span style="font-size:.8em;opacity:.75">swung 11.1&deg; to port</span></div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">80.2 nm / 3.3 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">3.3 kt</div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">4.5 kt</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>Course has steadied onto a nearly due-south line, speed holding modestly above the recent stalls. Still well within doldrums territory, but a more settled pattern than the wide swings of the last few entries.</p>
+      <p><b>Weather check (confirmed current, issued 0545 UTC today):</b> <b>Hurricane Vance</b> has eased slightly to 80kt, near 13.7&deg;N 103.4&deg;W, continuing NNW at 4kt &mdash; forecast to hold near 70kt through 48h. Distance from Phoenix: <b>~967 nm</b>, essentially flat from the last check. More immediately relevant: a convective band associated with Vance's circulation now extends as close as <b>~468 nm</b> from Phoenix's position, and the main ITCZ band itself is now only <b>~324 nm</b> south &mdash; the doldrums crossing is close at hand.</p>
+      <p><b>AIS check:</b> no independent hit, consistent with prior entries.</p>
+      <p><b>Voyage distance (odometer method):</b> 14,724.0 &minus; 12,104.7 baseline = <b>2,619.3 nm over 513h12m, avg 5.10 kt</b> (Day 21.38). Leg since Entry 41: <b>128.3 nm over 37h59m, avg 3.38 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+128.3 nm</b> (37h59m, avg 3.38 kt)</span>
+      <span>Since departure: <b>+2,619.3 nm</b></span>
+      <span>Elapsed: <b>513h12m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 41 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Fri Oct 23 &mdash; 16:00Z &middot; 08:00 local (UTC&minus;8, est.)</div>
+      <div class="entry-tag">Day 20 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">12&deg;25.768' N &nbsp;120&deg;10.135' W &nbsp;&middot;&nbsp; still working through light, shifty air</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 23, 04:00Z &middot; 11h59m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">1.3 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 1.5 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">184.7&deg;<br><span style="font-size:.8em;opacity:.75">swung 78.5&deg; to starboard</span></div></div>
+    </div>
+
+    <div class="narrative">
+      <p>Another near-stall with a wide course swing &mdash; the same light, directionless pattern that's defined this whole stretch of the doldrums. Nothing new to read into it beyond continued becalmed conditions.</p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+20.3 nm</b> (11h59m, avg 1.69 kt)</span>
+    </div>
+  </div>
+
+  <!-- ENTRY 40 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Fri Oct 23 &mdash; 04:00Z &middot; 20:00 local (UTC&minus;8, est.)</div>
+      <div class="entry-tag">Day 20 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">12&deg;45.305' N &nbsp;120&deg;17.672' W &nbsp;&middot;&nbsp; still in the doldrums, course swung well east of the recent line</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 22, 05:59Z &middot; 22h00m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">2.8 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 1.3 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">106.2&deg;<br><span style="font-size:.8em;opacity:.75">swung 58.5&deg; to port</span></div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">65.0 nm<br><span style="color:#c62828;font-size:.8em">&#9660; 3.8</span> / 2.7 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">3.9 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 0.5</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">4.4 kt<br><span style="font-size:.8em;opacity:.75">holding</span></div></div>
+    </div>
+
+    <div class="narrative">
+      <p>A recovery from the near-stall at the last reading, but a long way from settled &mdash; course has swung nearly 60&deg; further east, now pointed more ESE than south. Every rolling average continues to ease. This still reads as the doldrums: light, shifty air with no consistent angle to hold, rather than any deliberate routing change. Gap since Entry 39 (5h) is under the 8h threshold; weather and AIS context carry forward unchanged, including the Hurricane Vance watch.</p>
+      <p><b>Voyage distance (odometer method):</b> 14,570.8 &minus; 12,104.7 baseline = <b>2,466.1 nm over 463h13m, avg 5.32 kt</b> (Day 19.30). Leg since Entry 38: <b>48.3 nm over 22h00m, avg 2.19 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+48.3 nm</b> (22h00m, avg 2.19 kt)</span>
+      <span>Since departure: <b>+2,466.1 nm</b></span>
+      <span>Elapsed: <b>463h13m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 39 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Thu Oct 22 &mdash; 22:59Z &middot; 14:59 local (UTC&minus;8, est.)</div>
+      <div class="entry-tag">Day 20 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">12&deg;49.244' N &nbsp;120&deg;23.946' W &nbsp;&middot;&nbsp; essentially becalmed, course swung well off a held line</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 22, 05:59Z &middot; 17h00m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">0.6 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 3.5 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">211.6&deg;<br><span style="font-size:.8em;opacity:.75">swung 46.9&deg; to starboard</span></div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">76.8 nm<br><span style="color:#2e7d32;font-size:.8em">&#9650; 8.0</span> / 3.2 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">4.0 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 0.4</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">4.6 kt<br><span style="font-size:.8em;opacity:.75">holding</span></div></div>
+    </div>
+
+    <div class="narrative">
+      <p>Entry 38's pickup didn't hold &mdash; this reading is essentially becalmed (0.6 kt), and with no real wind to hold a line, course has swung nearly 47&deg; off where it was. This is the doldrums in its purest form: a boat with no wind to work with, drifting rather than sailing. The 24h figures still show a net positive run, so this isn't a total standstill, just very slow, uneven progress.</p>
+      <p><b>Weather check (confirmed current, issued 2345 UTC today) &mdash; Vance has strengthened into a hurricane:</b> upgraded from tropical storm to <b>Hurricane Vance</b>, now 55kt and intensifying fast under a hurricane warning &mdash; forecast 70kt within 12h, 90kt within 24h, and <b>105kt by 48h</b> near 12.6&deg;N 103.1&deg;W. Distance from Phoenix: <b>~1,125 nm</b> now, tightening to <b>~1,013 nm</b> at her 48h forecast position. Still a comfortable buffer against her forecast wind radii (tropical-storm-force winds extending 70&ndash;160 nm depending on quadrant at 48h), but this is now a genuine major-hurricane-track system in the same general region, and the gap is closing modestly each entry. The ITCZ itself is now <b>~688 nm</b> south &mdash; both the storm and the doldrums crossing are converging into the same stretch of the voyage ahead.</p>
+      <p><b>AIS check:</b> no independent hit, consistent with prior entries.</p>
+      <p><b>Voyage distance (odometer method):</b> 14,561.9 &minus; 12,104.7 baseline = <b>2,457.2 nm over 458h12m, avg 5.36 kt</b> (Day 19.09). Leg since Entry 38: <b>44.2 nm over 17h00m, avg 2.60 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+44.2 nm</b> (17h00m, avg 2.60 kt)</span>
+      <span>Since departure: <b>+2,457.2 nm</b></span>
+      <span>Elapsed: <b>458h12m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 38 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Thu Oct 22 &mdash; 05:59Z &middot; 21:59 local (UTC&minus;8, est.)</div>
+      <div class="entry-tag">Day 19 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">13&deg;33.399' N &nbsp;120&deg;21.994' W &nbsp;&middot;&nbsp; a real pickup, course swinging back toward due south</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 21, 17:59Z &middot; 12h00m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">4.1 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 1.8 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">164.7&deg;<br><span style="font-size:.8em;opacity:.75">swung 51.7&deg; to starboard</span></div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">68.8 nm<br><span style="color:#2e7d32;font-size:.8em">&#9650; 14.3</span> / 2.8 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">4.4 kt<br><span style="font-size:.8em;opacity:.75">holding</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">4.6 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 1.8</span></div></div>
+    </div>
+
+    <div class="narrative">
+      <p>The first genuinely encouraging reading in a while &mdash; speed, 24h run, and the rolling average all up together, and course has swung back toward due south after the recent light-air wandering. Still well below anything resembling the pre-doldrums pace, but this could be the start of working through to the other side rather than just another fluctuation within the calm.</p>
+      <p><b>Weather check (added after initial write &mdash; cumulative time since the last real check had reached 12h, past the 8h threshold, even though gaps between individual entries stayed under it):</b> the system near Tehuantepec is now <b>Tropical Storm Vance</b>, under a hurricane warning, 35kt and forecast to intensify fast &mdash; hurricane strength (80kt) within 36h, 95kt by 48h near 11.5&deg;N 103.5&deg;W. Distance from Phoenix: <b>~1,180 nm</b> now, tightening to <b>~996 nm</b> at her 48h forecast position. Still a large buffer, but this is now the second system (after Trudy) to reach hurricane strength while in the same general region Phoenix is transiting &mdash; worth tracking closely, especially as the ITCZ itself (now ~800 nm south) sits in roughly the same direction.</p>
+      <p><b>Voyage distance (odometer method):</b> 14,513.8 &minus; 12,104.7 baseline = <b>2,409.1 nm over 441h12m, avg 5.46 kt</b> (Day 18.38). Leg since Entry 36: <b>40.4 nm over 12h00m, avg 3.37 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+40.4 nm</b> (12h00m, avg 3.37 kt)</span>
+      <span>Since departure: <b>+2,409.1 nm</b></span>
+      <span>Elapsed: <b>441h12m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 37 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Wed Oct 21 &mdash; 23:59Z &middot; 15:59 local (UTC&minus;8, est.)</div>
+      <div class="entry-tag">Day 19 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">13&deg;56.699' N &nbsp;120&deg;30.306' W &nbsp;&middot;&nbsp; a touch more breeze, still well within the doldrums band</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 20, 23:51Z &middot; 24h08m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">3.9 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 1.8 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">150.1&deg;<br><span style="font-size:.8em;opacity:.75">swung 23.4&deg; to starboard</span></div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">58.8 nm<br><span style="color:#2e7d32;font-size:.8em">&#9650; 7.4</span> / 2.4 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">4.4 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 0.5</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">3.9 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 0.9</span></div></div>
+    </div>
+
+    <div class="narrative">
+      <p>A modest uptick in speed and a swing back to starboard, but nothing that breaks the doldrums pattern &mdash; still the lightest stretch of the voyage by a wide margin on every rolling measure. Gap since Entry 36 (6h) is under the 8h threshold; weather and AIS context carry forward unchanged, including the TD 22-E watch from that entry.</p>
+      <p><b>Voyage distance (odometer method):</b> 14,489.0 &minus; 12,104.7 baseline = <b>2,384.3 nm over 435h12m, avg 5.48 kt</b> (Day 18.13). Leg since Entry 35: <b>55.2 nm over 24h08m, avg 2.29 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+55.2 nm</b> (24h08m, avg 2.29 kt)</span>
+      <span>Since departure: <b>+2,384.3 nm</b></span>
+      <span>Elapsed: <b>435h12m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 36 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Wed Oct 21 &mdash; 17:59Z &middot; 09:59 local (UTC&minus;8, est.)</div>
+      <div class="entry-tag">Day 18 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">14&deg;08.740' N &nbsp;120&deg;42.117' W &nbsp;&middot;&nbsp; still deep in the doldrums, closing on the ITCZ</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 20, 23:51Z &middot; 18h08m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">2.3 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 0.2 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">113.0&deg;<br><span style="font-size:.8em;opacity:.75">swung 13.7&deg; to port</span></div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">54.5 nm<br><span style="color:#2e7d32;font-size:.8em">&#9650; 3.1</span> / 2.3 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">4.5 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 0.4</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">2.8 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 2.0</span></div></div>
+    </div>
+
+    <div class="narrative">
+      <p>Still parked in the doldrums &mdash; speed essentially flat from the last reading, no sign yet of breaking out into real breeze. This is a morning reading at his estimated local time (just before 10 AM), so this is daylight, not an overnight calm.</p>
+      <p><b>Weather check (confirmed current, issued 1745 UTC today) &mdash; a real development:</b> what was an organizing low near Tehuantepec is now <b>Tropical Depression Twenty-Two-E</b>, under a hurricane warning and forecast to intensify fast &mdash; tropical storm within 12h, hurricane by 36h (70kt), and 85kt by 48h near 10.7&deg;N 102.6&deg;W. Distance from Phoenix: <b>~1,288 nm</b> now, tightening to <b>~1,081 nm</b> at her 48h forecast position. Still a large buffer, but this is the most concrete tropical threat tracked since Trudy, and it's intensifying inside the same general longitude band he's working through &mdash; worth close tracking from here. Separately, the bulletin's own ITCZ placement puts the nearest segment roughly <b>549 nm</b> south of his position.</p>
+      <p><b>AIS check:</b> no independent hit, consistent with prior entries.</p>
+      <p><b>Voyage distance (odometer method):</b> 14,470.9 &minus; 12,104.7 baseline = <b>2,366.2 nm over 429h12m, avg 5.51 kt</b> (Day 17.88). Leg since Entry 35: <b>38.6 nm over 18h08m, avg 2.13 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+38.6 nm</b> (18h08m, avg 2.13 kt)</span>
+      <span>Since departure: <b>+2,366.2 nm</b></span>
+      <span>Elapsed: <b>429h12m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 35 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Tuesday, October 20 &mdash; 4:51 PM PT</div>
+      <div class="entry-tag">Day 18 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">14&deg;32.929' N &nbsp;121&deg;13.195' W &nbsp;&middot;&nbsp; genuinely becalmed, the doldrums have arrived</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 19, 4:50 PM PT &middot; 24h00m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">2.1 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 3.8 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">126.7&deg;<br><span style="font-size:.8em;opacity:.75">swung 14.7&deg; to port</span></div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">51.4 nm<br><span style="color:#c62828;font-size:.8em">&#9660; 62.2</span> / 2.1 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">4.9 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 0.6</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">4.8 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 1.2</span></div></div>
+    </div>
+
+    <div class="narrative">
+      <p>The real doldrums have arrived &mdash; 24h Run has collapsed to 51.4 nm, less than half of Entry 34's, and the 24h average speed (2.1 kt) is the lightest of the entire voyage by a wide margin. This isn't a brief lull like earlier entries; it's the genuinely becalmed, fickle-wind character the ITCZ crossing was always going to bring. Course has drifted with it, swinging to port without the conviction of a held angle &mdash; consistent with light, shifty air rather than any deliberate routing choice.</p>
+      <p><b>Weather check (confirmed current, issued 2345 UTC today):</b> his box holds at &le;20 kt, seas &le;2.5 m or less &mdash; matches the stall exactly. The <b>possible tropical cyclone organizing near Tehuantepec</b> continues to develop, now forecast to 30&ndash;45 kt within 48h near 11&deg;N 102&deg;W &mdash; still roughly 1,504 nm away, no factor. The ITCZ itself is now within real striking distance: <b>~636&ndash;729 nm</b> depending on which segment he ultimately crosses. No gale activity anywhere near his position.</p>
+      <p><b>AIS check:</b> no independent hit, consistent with prior entries.</p>
+      <p><b>Voyage distance (odometer method):</b> 14,430.2 &minus; 12,104.7 baseline = <b>2,325.5 nm over 411h03m, avg 5.66 kt</b> (Day 17.12). Leg since Entry 34: <b>47.1 nm over 24h00m, avg 1.96 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+47.1 nm</b> (24h00m, avg 1.96 kt)</span>
+      <span>Since departure: <b>+2,325.5 nm</b></span>
+      <span>Elapsed: <b>411h03m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 34 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Monday, October 19 &mdash; 4:50 PM PT</div>
+      <div class="entry-tag">Day 17 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">15&deg;17.923' N &nbsp;121&deg;27.662' W &nbsp;&middot;&nbsp; continuing the approach to the ITCZ</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 18, 5:51 PM PT &middot; 22h59m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">5.9 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 1.4 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">141.4&deg;<br><span style="font-size:.8em;opacity:.75">swung 6.2&deg; to port</span></div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">113.6 nm<br><span style="color:#c62828;font-size:.8em">&#9660; 6.4</span> / 4.7 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">5.5 kt<br><span style="font-size:.8em;opacity:.75">holding</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">6.0 kt &middot; holding</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>A modest pickup in speed from the last reading, course holding a steady line south-southeast. Still the same light, doldrums-adjacent character as the last couple of entries &mdash; no new development to report. Gap since Entry 33 (5h) is under the 8h threshold; weather and AIS context carry forward unchanged.</p>
+      <p><b>Voyage distance (odometer method):</b> 14,378.8 &minus; 12,104.7 baseline = <b>2,274.1 nm over 387h03m, avg 5.88 kt</b> (Day 16.12). Leg since Entry 32: <b>105.9 nm over 22h59m, avg 4.60 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+105.9 nm</b> (22h59m, avg 4.60 kt)</span>
+      <span>Since departure: <b>+2,274.1 nm</b></span>
+      <span>Elapsed: <b>387h03m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 33 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Monday, October 19 &mdash; 11:51 AM PT</div>
+      <div class="entry-tag">Day 16 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">15&deg;44.155' N &nbsp;121&deg;42.068' W &nbsp;&middot;&nbsp; closing on the ITCZ, ~530 nm of latitude left to it</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 18, 5:51 PM PT &middot; 18h00m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">5.4 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 0.9 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">129.1&deg;<br><span style="font-size:.8em;opacity:.75">swung 18.5&deg; to port</span></div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">107.8 nm<br><span style="color:#c62828;font-size:.8em">&#9660; 12.2</span> / 4.5 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">5.5 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 0.1</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">5.4 kt &middot; lightest stretch of the voyage</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>Pace continues easing &mdash; 24h Run and average both down again, the lightest readings of the entire voyage. This is the doldrums/ITCZ approach discussed earlier doing exactly what it does: progressively lighter, more variable conditions rather than any single dramatic event.</p>
+      <p><b>Weather check (confirmed current, issued 1745 UTC today):</b> <b>Trudy has gone post-tropical</b>, now 50kt and weakening fast (35kt by 24h, 25kt by 48h) near 19.5&deg;N 108.5&deg;W &mdash; effectively finished as a system. Distance now 788 nm and continuing to open as she fades. The bulletin's own ITCZ/monsoon trough placement (07&deg;N 123&deg;W to 04&deg;N 140&deg;W) gives a concrete target for the doldrums crossing: roughly <b>530 nm of latitude</b> left to reach it from here. A new low near 9&deg;N 102&deg;W is forecast to organize over 48h (20&ndash;25kt) &mdash; far south and east, not a current factor but worth a glance as it develops.</p>
+      <p><b>AIS check:</b> no independent hit, consistent with prior entries.</p>
+      <p><b>Voyage distance (odometer method):</b> 14,348.8 &minus; 12,104.7 baseline = <b>2,244.1 nm over 382h03m, avg 5.87 kt</b> (Day 15.92). Leg since Entry 32: <b>76.2 nm over 18h00m, avg 4.23 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+76.2 nm</b> (18h00m, avg 4.23 kt)</span>
+      <span>Since departure: <b>+2,244.1 nm</b></span>
+      <span>Elapsed: <b>382h03m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 32 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Sunday, October 18 &mdash; 5:51 PM PT</div>
+      <div class="entry-tag">Day 16 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">16&deg;49.874' N &nbsp;122&deg;22.150' W &nbsp;&middot;&nbsp; well into tropical latitudes, closing on the doldrums/ITCZ band</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 17, 11:51 PM PT &middot; 17h59m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">4.5 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 6.1 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">147.6&deg;<br><span style="font-size:.8em;opacity:.75">swung 5.6&deg; to starboard</span></div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">120.0 nm / 5.0 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">5.6 kt</div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">6.0 kt &middot; holding well off the record</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>The real headline since the last check-in: <b>Trudy has peaked and is now weakening fast.</b> She recurved north (now 19.5&deg;N, up from 13.1&deg;N) and has dropped from her 80&ndash;85kt peak, forecast down to 65kt in 24h and a 40kt tropical storm within 48h &mdash; effectively dissipating. The storm watch that's run through this stretch of the log is resolving itself without ever becoming a routing concern; distance is down to ~891 nm but closing only because she's fading while Phoenix continues south, not from any real convergence. Simon no longer appears on the bulletin at all.</p>
+      <p>Pace has slowed through this stretch (24h Run down to 120 nm, well off the 140&ndash;150s of recent days) as the boat works into lighter, more tropical conditions &mdash; consistent with approaching the doldrums/ITCZ band discussed earlier, rather than anything mechanical. Speed is down sharply from 18 hours ago as well, likely more of the same.</p>
+      <p><b>Voyage distance (track-cumulative method):</b> <b>2,165.0 nm over 364h03m, avg 5.95 kt</b> (Day 15.17). Leg since the comparator reading: <b>86.7 nm over 17h59m, avg 4.82 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+86.7 nm</b> (17h59m, avg 4.82 kt)</span>
+      <span>Since departure: <b>+2,165.0 nm</b></span>
+      <span>Elapsed: <b>364h03m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 31 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Sunday, October 18 &mdash; 11:50 AM PT</div>
+      <div class="entry-tag">Day 15 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">17&deg;22.389' N &nbsp;122&deg;39.180' W &nbsp;&middot;&nbsp; holding south through tropical latitudes</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 17, 11:51 PM PT &middot; 11h59m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">9.0 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 1.6 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">134.2&deg;<br><span style="font-size:.8em;opacity:.75">swung 7.8&deg; to port</span></div></div>
+    </div>
+
+    <div class="narrative">
+      <p>Settled, steady running &mdash; no repeat of the prior reading's swings, course and speed both holding a sensible line.</p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+57.9 nm</b> (11h59m)</span>
+    </div>
+  </div>
+
+  <!-- ENTRY 30 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Saturday, October 17 &mdash; 11:51 PM PT</div>
+      <div class="entry-tag">Day 15 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">17&deg;58.829' N &nbsp;123&deg;13.168' W &nbsp;&middot;&nbsp; recovered and back underway</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 17, 11:51 AM PT &middot; 12h00m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">10.6 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 7.6 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">142.0&deg;<br><span style="font-size:.8em;opacity:.75">swung 106.8&deg; to port</span></div></div>
+    </div>
+
+    <div class="narrative">
+      <p>A sharp recovery from the previous reading's near-stall and wide swing &mdash; speed back up to 10.6 kt and course has corrected hard back to port, essentially reversing the prior entry's heading change. Paired together, the two readings read like a stall-and-recovery event (a knockdown or broach, caught mid-correction) rather than two unrelated data points &mdash; the same pattern seen earlier in the voyage, though without wind data available for this stretch to confirm it directly.</p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+50.8 nm</b> (12h00m)</span>
+    </div>
+  </div>
+
+  <!-- ENTRY 29 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Saturday, October 17 &mdash; 11:51 AM PT</div>
+      <div class="entry-tag">Day 14 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">18&deg;38.768' N &nbsp;123&deg;45.254' W &nbsp;&middot;&nbsp; a rough moment, recovering</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 16, 11:51 PM PT &middot; 12h00m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">3.0 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 7.3 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">248.8&deg;<br><span style="font-size:.8em;opacity:.75">swung 84.1&deg; to starboard</span></div></div>
+    </div>
+
+    <div class="narrative">
+      <p>A near-stall (3.0 kt) paired with an 84&deg; course swing &mdash; the same stall-and-swing shape seen before, though without wind data for this stretch it's not possible to confirm a broach directly. Worth reading together with the next entry's sharp recovery.</p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+44.9 nm</b> (12h00m)</span>
+    </div>
+  </div>
+
+  <!-- ENTRY 28 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Friday, October 16 &mdash; 11:51 PM PT</div>
+      <div class="entry-tag">Day 14 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">19&deg;17.110' N &nbsp;123&deg;49.057' W &nbsp;&middot;&nbsp; holding south</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 16, 11:51 AM PT &middot; 11h59m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">10.3 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 2.5 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">164.7&deg;<br><span style="font-size:.8em;opacity:.75">swung 32.1&deg; to starboard</span></div></div>
+    </div>
+
+    <div class="narrative">
+      <p>Course has corrected back toward due south after the prior entry's swing to port; speed easing slightly but still a solid pace.</p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+71.6 nm</b> (11h59m)</span>
+    </div>
+  </div>
+
+  <!-- ENTRY 27 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Friday, October 16 &mdash; 11:51 AM PT</div>
+      <div class="entry-tag">Day 13 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">20&deg;18.217' N &nbsp;124&deg;26.779' W &nbsp;&middot;&nbsp; continuing south at a strong pace</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 15, 11:51 PM PT &middot; 12h00m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">12.8 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 1.4 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">132.6&deg;<br><span style="font-size:.8em;opacity:.75">swung 30.7&deg; to port</span></div></div>
+    </div>
+
+    <div class="narrative">
+      <p>Course has worked further to port onto a broader angle, speed building nicely &mdash; a strong overnight run.</p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+72.9 nm</b> (12h00m)</span>
+    </div>
+  </div>
+
+  <!-- ENTRY 26 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Thursday, October 15 &mdash; 11:51 PM PT</div>
+      <div class="entry-tag">Day 13 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">21&deg;15.051' N &nbsp;125&deg;11.701' W &nbsp;&middot;&nbsp; continuing south</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 15, 11:50 AM PT &middot; 12h00m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">11.4 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 5.9 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">163.3&deg;<br><span style="font-size:.8em;opacity:.75">swung 9.1&deg; to port</span></div></div>
+    </div>
+
+    <div class="narrative">
+      <p>Good pace through the evening, speed well up with a steady southbound course.</p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+80.9 nm</b> (12h00m)</span>
+    </div>
+  </div>
+
+  <!-- ENTRY 25 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Thursday, October 15 &mdash; 11:50 AM PT</div>
+      <div class="entry-tag">Day 12 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">22&deg;28.775' N &nbsp;125&deg;46.969' W &nbsp;&middot;&nbsp; course corrected back toward due south</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 14, 4:38 PM PT &middot; 19h11m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">5.5 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 0.6 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">172.4&deg;<br><span style="font-size:.8em;opacity:.75">swung 16.6&deg; to starboard</span></div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">145.0 nm<br><span style="color:#2e7d32;font-size:.8em">&#9650; 11.2</span> / 6.0 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">6.3 kt<br><span style="font-size:.8em;opacity:.75">holding</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">7.6 kt &middot; holding</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>The easterly course trend flagged in conversation has corrected itself &mdash; back to 172.4&deg;, close to due south again, a 16.6&deg; swing back to starboard from Entry 24. Reads as confirmation of the speed-angle read discussed rather than a sustained move toward the coast: whatever tighter angle he was holding has relaxed back to the prevailing southbound line. Wind/attitude fields came back unpopulated this pull (partial read), so the trend can't be followed through the actual wind data this entry, only through course and speed.</p>
+      <p><b>Weather check (confirmed current, issued 1745 UTC today) &mdash; Trudy has intensified further and is now a stronger system than Entry 24 suggested:</b> upgraded to <b>80kt</b> (from 65kt), with the 24h forecast now calling for <b>115kt</b> and the 48h forecast <b>120kt</b> &mdash; both higher than the prior bulletin's numbers. Distance recalculated precisely for this position: <b>1,490 nm</b> to Trudy's current position, <b>1,311 nm</b> to her 48h forecast position. Still a very large buffer against even her forecast tropical-storm-force wind radius (currently out to 90nm, forecast to 120nm by 48h), but the pace of intensification is real and worth continued tracking. Simon continues weakening (45kt now), 1,011 nm away, no longer a meaningful factor.</p>
+      <p><b>Voyage distance (odometer method):</b> 13,861.9 &minus; 12,104.7 baseline = <b>1,757.2 nm over 286h03m, avg 6.14 kt</b> (Day 11.92). Leg since Entry 23: <b>118.4 nm over 19h11m, avg 6.17 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+118.4 nm</b> (19h11m, avg 6.17 kt)</span>
+      <span>Since departure: <b>+1,757.2 nm</b></span>
+      <span>Elapsed: <b>286h03m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 24 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Thursday, October 15 &mdash; 4:50 AM PT</div>
+      <div class="entry-tag">Day 12 &middot; Live, full instrument read</div>
+    </div>
+    <div class="entry-pos">23&deg;06.697' N &nbsp;126&deg;06.273' W &nbsp;&middot;&nbsp; continuing on the tighter, more easterly angle noted in conversation</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 14, 4:38 PM PT &middot; 12h11m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">6.5 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 1.6 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">135.2&deg;<br><span style="font-size:.8em;opacity:.75">swung 20.6&deg; to port</span></div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">11.8 kt<br><span style="font-size:.8em;opacity:.75">holding</span></div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">86.9&deg;<br><span style="font-size:.8em;opacity:.75">veered 39.7&deg;</span></div></div>
+      <div class="cell"><div class="k">STW</div><div class="v">3.4 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 0.3 kt</span></div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">P87.3&deg;</div></div>
+      <div class="cell"><div class="k">True Heading</div><div class="v">174.2&deg;</div></div>
+      <div class="cell"><div class="k">Yaw / Pitch / Roll</div><div class="v">174.2&deg; / 0.7&deg; / -2.8&deg;</div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">137.2 nm<br><span style="color:#2e7d32;font-size:.8em">&#9650; 3.4</span> / 5.7 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">6.3 kt<br><span style="font-size:.8em;opacity:.75">holding</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">7.6 kt &middot; holding</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>The wind-angle trend flagged earlier has continued and sharpened: True Wind Direction has now veered to 86.9&deg; (essentially due east, up from 37.7&deg; a few entries back), and True Wind Angle has tightened further to a near-beam P87.3&deg;. Course has followed it east to 135.2&deg; (SE). SOG is up nicely (6.5 kt) on this tighter angle, consistent with the speed-seeking read discussed rather than a deliberate move toward the coast &mdash; though the cumulative easting over the last day is now real enough to keep watching.</p>
+      <p><b>Weather check (confirmed current, issued 1145 UTC today) &mdash; a genuine development:</b> <b>Trudy has been upgraded to a hurricane</b>, now 65kt and intensifying fast, forecast to reach 100kt within 24h and <b>115kt (major) within 48h</b> near 16.1&deg;N 103.4&deg;W. Position and course corrected precisely this entry: Trudy is now <b>1,524 nm</b> from Phoenix's position (versus 1,349 nm at her 48h forecast point) &mdash; closing somewhat as both continue roughly toward each other, but still a very large buffer relative to even her forecast tropical-storm-force wind radius (90&ndash;130 nm at 48h). <b>Simon has weakened to a tropical storm</b> (50kt, nearly stationary), now 1,013 nm away and no longer a significant factor. No routing conflict at this distance; continuing to track given Trudy's intensification rate.</p>
+      <p><b>AIS check:</b> no independent hit, consistent with prior entries.</p>
+      <p><b>Voyage distance (odometer method):</b> 13,818.7 &minus; 12,104.7 baseline = <b>1,714.0 nm over 279h03m, avg 6.14 kt</b> (Day 11.63). Leg since Entry 23: <b>76.6 nm over 12h11m, avg 6.28 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+76.6 nm</b> (12h11m, avg 6.28 kt)</span>
+      <span>Since departure: <b>+1,714.0 nm</b></span>
+      <span>Elapsed: <b>279h03m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 23 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Wednesday, October 14 &mdash; 4:38 PM PT</div>
+      <div class="entry-tag">Day 12 &middot; Live, full instrument read</div>
+    </div>
+    <div class="entry-pos">24&deg;12.087' N &nbsp;126&deg;49.705' W &nbsp;&middot;&nbsp; light air, continuing south</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 13, 6:50 PM PT &middot; 21h48m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">4.9 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 2.0 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">155.8&deg;<br><span style="font-size:.8em;opacity:.75">swung 7.7&deg; to starboard</span></div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">11.0 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 4.2 kt, easing</span></div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">47.2&deg;<br><span style="font-size:.8em;opacity:.75">backed 9.9&deg;</span></div></div>
+      <div class="cell"><div class="k">STW</div><div class="v">3.7 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 2.0 kt</span></div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">P105.6&deg;</div></div>
+      <div class="cell"><div class="k">True Heading</div><div class="v">142.2&deg;</div></div>
+      <div class="cell"><div class="k">Yaw / Pitch / Roll</div><div class="v">142.2&deg; / -4.9&deg; / 0.8&deg;</div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">133.8 nm<br><span style="color:#c62828;font-size:.8em">&#9660; 17.3</span> / 5.6 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">6.3 kt<br><span style="font-size:.8em;opacity:.75">holding</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">6.9 kt &middot; holding</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>The lightest conditions of this stretch &mdash; True Wind down to 11.0 kt, SOG and STW both off noticeably, course drifted back to starboard onto a broad reach (TWA P105.6&deg;). Roll has settled right down too (0.8&deg;), a genuinely gentle ride compared to the breezy days earlier this week. Nothing concerning, just a lull.</p>
+      <p><b>Weather check (confirmed current, issued 2345 UTC today):</b> his box holds at winds &le;20 kt, seas 2.5&ndash;3.0 m in a N swell. <b>Tropical Storm Trudy is intensifying quickly</b> &mdash; now 55kt, forecast to reach major hurricane strength (110kt) within 48h near 14.9&deg;N 102.0&deg;W. This is the most significant system to watch; roughly 1,500 nm south of his position (corrected &mdash; an earlier estimate in this log understated the distance) but strengthening fast, worth a close eye on subsequent entries. <b>Hurricane Simon is weakening</b>, down to 65kt and forecast to drop to tropical storm strength (60kt) by 48h near 20.3&deg;N 109.5&deg;W, roughly 990 nm south.</p>
+      <p><b>AIS check:</b> no independent hit, consistent with prior entries.</p>
+      <p><b>Voyage distance (odometer method):</b> 13,742.5 &minus; 12,104.7 baseline = <b>1,637.8 nm over 266h51m, avg 6.14 kt</b> (Day 11.12). Leg since Entry 21: <b>106.1 nm over 21h48m, avg 4.87 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+106.1 nm</b> (21h48m, avg 4.87 kt)</span>
+      <span>Since departure: <b>+1,637.8 nm</b></span>
+      <span>Elapsed: <b>266h51m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 22 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Wednesday, October 14 &mdash; 7:50 AM PT</div>
+      <div class="entry-tag">Day 11 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">24&deg;52.495' N &nbsp;126&deg;59.391' W &nbsp;&middot;&nbsp; continuing south, breeze easing further and going more easterly</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 13, 6:50 PM PT &middot; 13h00m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">5.1 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 1.8 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">109.3&deg;<br><span style="font-size:.8em;opacity:.75">swung 38.8&deg; to port</span></div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">12.1 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 3.1 kt, easing</span></div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">87.4&deg;<br><span style="font-size:.8em;opacity:.75">veered 30.3&deg;</span></div></div>
+      <div class="cell"><div class="k">STW</div><div class="v">4.3 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 1.4 kt</span></div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">P58.6&deg;</div></div>
+      <div class="cell"><div class="k">True Heading</div><div class="v">146.0&deg;</div></div>
+      <div class="cell"><div class="k">Yaw / Pitch / Roll</div><div class="v">146.0&deg; / -2.7&deg; / 4.5&deg;</div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">141.4 nm<br><span style="color:#c62828;font-size:.8em">&#9660; 9.7</span> / 6.1 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">6.3 kt<br><span style="font-size:.8em;opacity:.75">holding</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">8.4 kt &middot; holding</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>The wind continues working aft and easing &mdash; True Wind Direction now 87.4&deg; (essentially due east, a further 30&deg; veer from Entry 21), and True Wind Angle has come forward further still to P58.6&deg;, a close reach. Lighter air (12.1 kt) has brought speed down a touch, consistent rather than concerning &mdash; this reads as the trade-wind-adjacent pattern typical for this latitude settling in.</p>
+      <p><b>Weather check (confirmed current, issued 1145 UTC today):</b> his box holds at winds &le;20 kt, seas 2.5&ndash;3.0 m in a N swell. <b>Tropical Storm Trudy</b> has eased slightly to 45kt but is forecast to re-intensify to 100kt within 48h near 14.0&deg;N 102.4&deg;W, roughly 1,530 nm south of his position. <b>Hurricane Simon</b> holds near 90kt at 19.8&deg;N 107.9&deg;W, roughly 1,100 nm south, now drifting SW rather than approaching. (Distances corrected from an earlier, understated estimate in this log &mdash; both systems are considerably further away than first stated.)</p>
+      <p><b>AIS check:</b> no independent hit, consistent with prior entries.</p>
+      <p><b>Voyage distance (odometer method):</b> 13,697.5 &minus; 12,104.7 baseline = <b>1,592.8 nm over 258h03m, avg 6.17 kt</b> (Day 10.75). Leg since Entry 21: <b>68.1 nm over 13h00m, avg 5.23 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+68.1 nm</b> (13h00m, avg 5.23 kt)</span>
+      <span>Since departure: <b>+1,592.8 nm</b></span>
+      <span>Elapsed: <b>258h03m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 21 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Tuesday, October 13 &mdash; 6:50 PM PT</div>
+      <div class="entry-tag">Day 11 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">25&deg;43.258' N &nbsp;127&deg;49.480' W &nbsp;&middot;&nbsp; continuing south, steady trades-like sailing</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 13, 3:38 AM PT &middot; 15h12m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">6.9 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 0.9 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">148.1&deg;<br><span style="font-size:.8em;opacity:.75">swung 4.7&deg; to starboard</span></div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">15.2 kt<br><span style="font-size:.8em;opacity:.75">holding</span></div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">57.1&deg;<br><span style="font-size:.8em;opacity:.75">veered 30.4&deg;</span></div></div>
+      <div class="cell"><div class="k">STW</div><div class="v">5.7 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 1.2 kt</span></div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">P86.0&deg;</div></div>
+      <div class="cell"><div class="k">True Heading</div><div class="v">143.2&deg;</div></div>
+      <div class="cell"><div class="k">Yaw / Pitch / Roll</div><div class="v">143.2&deg; / 5.8&deg; / 8.4&deg;</div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">151.1 nm<br><span style="color:#2e7d32;font-size:.8em">&#9650; 12.6</span> / 6.3 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">6.3 kt<br><span style="font-size:.8em;opacity:.75">holding</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">8.4 kt &middot; holding</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>A real wind shift this reading &mdash; True Wind Direction has veered 30&deg; (26.7&deg; &rarr; 57.1&deg;, N to NE), and the True Wind Angle has come forward sharply (P117&deg; &rarr; P86.0&deg;), putting the boat on a proper beam reach rather than the broader angle of recent entries. SOG and STW both ticked up with it. No SOG reading came through this pull (blank field); STW and the rest of the panel were populated normally.</p>
+      <p><b>Weather check (confirmed current, issued 2345 UTC today):</b> his box remains winds &le;20 kt, seas 2.5&ndash;3.0 m in a NW swell. Two systems worth flagging well to the south: <b>Tropical Storm Trudy</b> has a hurricane warning out, forecast to intensify to 90kt within 48h near 13.5&deg;N 100.8&deg;W, roughly 1,690 nm south. <b>Hurricane Simon</b> holds at 80kt near 20.2&deg;N 107.5&deg;W, roughly 1,170 nm south. No current routing impact, but Trudy's intensification is worth continued tracking if the course keeps closing that latitude. (Distance corrected &mdash; an earlier estimate in this log understated how far south both systems actually are.)</p>
+      <p><b>AIS check:</b> no independent hit, consistent with prior entries.</p>
+      <p><b>Voyage distance (odometer method):</b> 13,622.3 &minus; 12,104.7 baseline = <b>1,517.6 nm over 245h03m, avg 6.19 kt</b> (Day 10.21). Leg since the comparator reading: <b>91.3 nm over 15h12m, avg 6.00 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+91.3 nm</b> (15h12m, avg 6.00 kt)</span>
+      <span>Since departure: <b>+1,517.6 nm</b></span>
+      <span>Elapsed: <b>245h03m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 20 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Tuesday, October 13 &mdash; 9:38 AM PT</div>
+      <div class="entry-tag">Day 10 &middot; Live, full instrument read</div>
+    </div>
+    <div class="entry-pos">26&deg;38.308' N &nbsp;128&deg;13.416' W &nbsp;&middot;&nbsp; reaching south with building breeze</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 12, 5:38 AM PT &middot; 28h00m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">8.4 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 2.5 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">161.0&deg;<br><span style="font-size:.8em;opacity:.75">swung 25.2&deg; to port</span></div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">15.3 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 4.4 kt, building</span></div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">38.1&deg;<br><span style="font-size:.8em;opacity:.75">veered 25.4&deg;</span></div></div>
+      <div class="cell"><div class="k">STW</div><div class="v">5.5 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 1.8 kt</span></div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">P120.3&deg;</div></div>
+      <div class="cell"><div class="k">True Heading</div><div class="v">147.3&deg;</div></div>
+      <div class="cell"><div class="k">Yaw / Pitch / Roll</div><div class="v">147.3&deg; / 5.6&deg; / 8.7&deg;</div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">145.0 nm<br><span style="color:#c62828;font-size:.8em">&#9660; 8.0</span> / 6.1 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">6.2 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 0.2</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">8.4 kt &middot; ticking up, still well off the record</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>A genuinely good morning's sailing &mdash; breeze continuing to build (15.3 kt True Wind, up steadily over the last two readings), SOG and STW both climbing with it, and the course has rounded up slightly (161.0&deg;) onto a comfortable reaching angle (TWA P120.3&deg;). Heel is moderate (8.7&deg; roll) and consistent, nothing abrupt.</p>
+      <p>Gap since the last entry (6h) remains under the 8h threshold; weather and AIS context still carries forward from Entry 18's last confirmed check.</p>
+      <p><b>Voyage distance (odometer method):</b> 13,562.4 &minus; 12,104.7 baseline = <b>1,457.7 nm over 235h51m, avg 6.18 kt</b> (Day 9.83). Leg since the comparator reading: <b>156.0 nm over 28h00m, avg 5.57 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+156.0 nm</b> (28h00m, avg 5.57 kt)</span>
+      <span>Since departure: <b>+1,457.7 nm</b></span>
+      <span>Elapsed: <b>235h51m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 19 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Tuesday, October 13 &mdash; 3:38 AM PT</div>
+      <div class="entry-tag">Day 10 &middot; Live, full instrument read</div>
+    </div>
+    <div class="entry-pos">27&deg;10.295' N &nbsp;128&deg;19.943' W &nbsp;&middot;&nbsp; holding the reach, steady progress south</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 12, 5:38 AM PT &middot; 22h00m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">6.0 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 0.1 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">143.4&deg;<br><span style="font-size:.8em;opacity:.75">swung 42.8&deg; to port</span></div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">15.1 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 4.2 kt, building</span></div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">26.7&deg;<br><span style="font-size:.8em;opacity:.75">veered 14.0&deg;</span></div></div>
+      <div class="cell"><div class="k">STW</div><div class="v">4.5 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 0.8 kt</span></div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">P122.3&deg;</div></div>
+      <div class="cell"><div class="k">True Heading</div><div class="v">137.7&deg;</div></div>
+      <div class="cell"><div class="k">Yaw / Pitch / Roll</div><div class="v">137.7&deg; / -1.5&deg; / -9.7&deg;</div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">138.5 nm<br><span style="color:#c62828;font-size:.8em">&#9660; 14.5</span> / 5.8 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">6.3 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 0.1</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">7.8 kt &middot; holding</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>Essentially a continuation of Entry 18's picture &mdash; same reaching angle, breeze if anything slightly stronger (15.1 kt), course and speed both holding steady. Roll has flipped sign (-9.7&deg; vs. the prior +9.3&deg;) with no other change of note, most likely just which side of a gentle rolling motion this particular snapshot caught rather than anything happening to the boat.</p>
+      <p>Gap since the prior reading (3h) is well under the 8h threshold for a full re-check; weather and AIS context carry forward from Entry 18 with no new verification this entry.</p>
+      <p><b>Voyage distance (odometer method):</b> 13,529.7 &minus; 12,104.7 baseline = <b>1,425.0 nm over 229h51m, avg 6.20 kt</b> (Day 9.58). Leg since Entry 17: <b>123.5 nm over 22h00m, avg 5.61 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+123.5 nm</b> (22h00m, avg 5.61 kt)</span>
+      <span>Since departure: <b>+1,425.0 nm</b></span>
+      <span>Elapsed: <b>229h51m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 18 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Tuesday, October 13 &mdash; 12:38 AM PT</div>
+      <div class="entry-tag">Day 10 &middot; Live, full instrument read</div>
+    </div>
+    <div class="entry-pos">27&deg;26.515' N &nbsp;128&deg;30.369' W &nbsp;&middot;&nbsp; continuing south, picking up pace</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 12, 5:38 AM PT &middot; 19h00m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">7.3 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 1.4 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">142.5&deg;<br><span style="font-size:.8em;opacity:.75">swung 43.7&deg; to port</span></div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">15.8 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 4.9 kt, building</span></div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">16.3&deg;<br><span style="font-size:.8em;opacity:.75">veered 3.6&deg;</span></div></div>
+      <div class="cell"><div class="k">STW</div><div class="v">4.4 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 0.7 kt</span></div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">P117.4&deg;</div></div>
+      <div class="cell"><div class="k">True Heading</div><div class="v">122.4&deg;</div></div>
+      <div class="cell"><div class="k">Yaw / Pitch / Roll</div><div class="v">122.4&deg; / 5.6&deg; / 9.3&deg;</div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">137.6 nm<br><span style="color:#c62828;font-size:.8em">&#9660; 15.4</span> / 5.8 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">6.3 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 0.1</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">7.8 kt &middot; see note</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>Course has swung well to port (186&deg; &rarr; 142.5&deg;) and the breeze has built with it (True Wind 10.9 &rarr; 15.8 kt) &mdash; the boat's now on a broader, faster angle (TWA P117.4&deg;, a true reach rather than running square), and roll has picked up noticeably (0.8&deg; &rarr; 9.3&deg;), consistent with sailing harder on this new angle rather than anything troublesome.</p>
+      <p><b>On the Max Speed 24h field dropping to 7.8 kt:</b> this is the rolling window continuing to age past both the confirmed 14.5 kt record and the unconfirmed 24.7 kt reading from Oct 11 &mdash; neither can be corroborated further now that they're fully outside the 24h window. The confirmed 14.5 kt record from Entry 15 stands as the header's journey max; this field will simply track whatever's fastest in the trailing 24 hours going forward.</p>
+      <p><b>Weather check (confirmed current, issued 0545 UTC today):</b> his box (within the 30N/113&ndash;140W region) holds at winds &le;20 kt, seas 2.5&ndash;3.0 m in a N swell. <b>Hurricane Simon</b> has weakened further to 85kt, now near 20.4&deg;N 107.0&deg;W, moving WNW slowly &mdash; still well clear. A low south of Simon near 8.5&deg;N 95.5&deg;W is now flagged as a <b>possible developing tropical cyclone</b>, with the 48h forecast showing it strengthening to 30&ndash;45kt near 12&deg;N 101.5&deg;W &mdash; still far south of his position, but worth tracking as it develops given the direction of travel.</p>
+      <p><b>AIS check:</b> no independent hit, consistent with prior entries.</p>
+      <p><b>Voyage distance (odometer method):</b> 13,511.0 &minus; 12,104.7 baseline = <b>1,406.3 nm over 226h51m, avg 6.20 kt</b> (Day 9.45). Leg since last entry: <b>106.0 nm over 19h00m, avg 5.58 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+106.0 nm</b> (19h00m, avg 5.58 kt)</span>
+      <span>Since departure: <b>+1,406.3 nm</b></span>
+      <span>Elapsed: <b>226h51m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 17 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Monday, October 12 &mdash; 5:38 AM PT</div>
+      <div class="entry-tag">Day 9 &middot; Live, full instrument read</div>
+    </div>
+    <div class="entry-pos">29&deg;11.391' N &nbsp;128&deg;47.034' W &nbsp;&middot;&nbsp; holding a direct southbound track</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 11, 4:38 PM PT &middot; 13h00m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">5.9 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 2.9 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">186.2&deg;<br><span style="font-size:.8em;opacity:.75">swung 5.9&deg; to port</span></div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">10.9 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 2.6 kt, building</span></div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">12.7&deg;<br><span style="font-size:.8em;opacity:.75">backed 10.0&deg;</span></div></div>
+      <div class="cell"><div class="k">STW</div><div class="v">3.7 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 0.5 kt</span></div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">P172.8&deg;</div></div>
+      <div class="cell"><div class="k">True Heading</div><div class="v">173.8&deg;</div></div>
+      <div class="cell"><div class="k">Yaw / Pitch / Roll</div><div class="v">173.8&deg; / 2.8&deg; / -1.9&deg;</div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">153.0 nm<br><span style="color:#c62828;font-size:.8em">&#9660; 13.3</span> / 6.4 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">6.4 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 0.1</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">13.3 kt &middot; holding</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>Breeze has filled back in a touch (True Wind 8.3 &rarr; 10.9 kt) and SOG's up with it. True Wind Angle flipped from S171.8&deg; to P172.8&deg; &mdash; both essentially dead downwind, so this reads as a minor, probably incidental gybe rather than anything deliberate, not the kind of event worth a dedicated note.</p>
+      <p><b>Weather check (confirmed current, issued 1145 UTC today):</b> his box (within the 30N/117&ndash;140W region) holds at winds &le;20 kt, seas 2.5&ndash;3.0 m in a N&ndash;NE swell &mdash; matches his own reading well. <b>Hurricane Simon</b> has weakened to 100kt sustained, now near 20.0&deg;N 106.3&deg;W, moving NW slowly at 4 kt &mdash; still well over 1,000 nm away, no factor. A couple of weak low-pressure areas/possible tropical cyclones are organizing far to the south near 9&ndash;11&deg;N, 95&ndash;99&deg;W &mdash; well outside his area, noted only in case they develop and matter later.</p>
+      <p><b>AIS check:</b> no independent hit, consistent with prior entries.</p>
+      <p><b>Voyage distance (odometer method):</b> 13,400.6 &minus; 12,104.7 baseline = <b>1,295.9 nm over 207h51m, avg 6.23 kt</b> (Day 8.66). Leg since last entry: <b>68.6 nm over 13h00m, avg 5.27 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+68.6 nm</b> (13h00m, avg 5.27 kt)</span>
+      <span>Since departure: <b>+1,295.9 nm</b></span>
+      <span>Elapsed: <b>207h51m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 16 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Sunday, October 11 &mdash; 4:38 PM PT</div>
+      <div class="entry-tag">Day 9 &middot; Live, full instrument read</div>
+    </div>
+    <div class="entry-pos">30&deg;15.705' N &nbsp;128&deg;19.788' W &nbsp;&middot;&nbsp; continuing south in lighter air</div>
+
+    <p style="opacity:.65;font-size:.85rem;margin:0 0 10px">Deltas correspond to the reading at Oct 10, 4:49 PM PT &middot; 23h49m earlier</p>
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">3.0 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 9.4 kt</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">192.1&deg;<br><span style="font-size:.8em;opacity:.75">swung 51.6&deg; to port</span></div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">8.3 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 11.2 kt, easing</span></div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">22.7&deg;<br><span style="font-size:.8em;opacity:.75">backed 5.4&deg;</span></div></div>
+      <div class="cell"><div class="k">STW</div><div class="v">3.2 kt<br><span style="color:#c62828;font-size:.8em">&#9660; 0.8 kt</span></div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">S171.8&deg;</div></div>
+      <div class="cell"><div class="k">True Heading</div><div class="v">199.0&deg;</div></div>
+      <div class="cell"><div class="k">Yaw / Pitch / Roll</div><div class="v">-161.0&deg; / 5.8&deg; / 0.8&deg;</div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">166.3 nm<br><span style="color:#c62828;font-size:.8em">&#9660; 1.3</span> / 6.7 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">6.3 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 0.1</span></div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">13.3 kt &middot; see note</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>The easing forecast from this morning has verified &mdash; True Wind down to 8.3 kt, SOG dropped to 3.0 kt, and the boat's settled into a steadier, lighter-air groove after two hard days of breeze. Course has pulled back to 192.1&deg;, close to due south, with STW (3.2 kt) and SOG (3.0 kt) now closely matched &mdash; no sign of the surfing/turbulence gap seen at speed. Heel is minimal (0.8&deg; roll), consistent with a boat sailing comfortably rather than pressed.</p>
+      <p><b>On the unconfirmed 24.7 kt reading from this morning:</b> the rolling 24h-max field has now aged past that window and dropped to 13.3 kt, so no further corroboration is possible from this field &mdash; it's rolled out of range rather than having been confirmed or denied. Leaving it in the log as a noted, unconfirmed data point from Entry 16's original draft rather than the standing record.</p>
+      <p>Gap since the prior pull (7h50m) is under the 8h threshold for a full re-check; weather and AIS context carry forward from the last confirmed check with no new verification this entry.</p>
+      <p><b>Voyage distance (odometer method):</b> 13,316.2 &minus; 12,104.7 baseline = <b>1,211.5 nm over 194h51m, avg 6.22 kt</b> (Day 8.12). Leg since Entry 15: <b>132.4 nm over 23h48m, avg 5.56 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+132.4 nm</b> (23h48m, avg 5.56 kt)</span>
+      <span>Since departure: <b>+1,211.5 nm</b></span>
+      <span>Elapsed: <b>194h51m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 15 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Saturday, October 10 &mdash; 4:49 PM PT</div>
+      <div class="entry-tag">Day 8 &middot; Live</div>
+    </div>
+    <div class="entry-pos">32&deg;23.418' N &nbsp;129&deg;00.312' W &nbsp;&middot;&nbsp; crossing out of US waters &mdash; the US/Mexico border latitude fell this afternoon &middot; ~355 nm offshore</div>
+
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">12.4 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 5.4</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">243.7&deg;<br><span style="color:#2e7d32;font-size:.8em">&#9650; 57.1&deg;</span></div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">19.5 kt</div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">28.1&deg; (NNE)</div></div>
+      <div class="cell"><div class="k">STW</div><div class="v">4.0 kt</div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">P138.4&deg;</div></div>
+      <div class="cell"><div class="k">True Heading</div><div class="v">166.5&deg;</div></div>
+      <div class="cell"><div class="k">Yaw / Pitch / Roll</div><div class="v">166.5&deg; / -3.8&deg; / -4.1&deg;</div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">167.6 nm<br><span style="color:#2e7d32;font-size:.8em">&#9650; 4.9</span> / 7.0 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">6.2 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 0.7</span></div></div>
+      <div class="cell"><div class="k">Journey Max Speed</div><div class="v"><b>14.5 kt</b> &middot; new record</div></div>
+    </div>
+
+    <div class="narrative">
+      <p><b>Two milestones in one push.</b> Since Entry 14 last night, Phoenix has cleared both Point Conception's latitude and, as of this afternoon, the US/Mexico border latitude &mdash; she's now sailing waters off Baja rather than the California coast proper. That's 114.7 nm covered in 19 hours, nearly 2.5&times; the pace of the quieter stretch before it.</p>
+      <p><b>She's found real pressure.</b> SOG has nearly doubled since last night (7.0 &rarr; 12.4 kt), and the boat just logged a new <b>journey-best speed of 14.5 kt</b> &mdash; almost double the previous high of 7.8 kt set days ago. True wind reading 19.5 kt with a forecast that had this corridor building toward 20&ndash;30 kt and seas to 2.5&ndash;4 m &mdash; this looks like that system arriving in earnest rather than a brief gust.</p>
+      <p><b>Worth a specific note: that 14.5 kt peak.</b> Pinned in the position data to <b>7:49 AM PT, Saturday Oct 10, at 33&deg;18.31'N 129&deg;00.13'W</b>, running 159.5&deg; (SSE). That's roughly double the Pacific Seacraft 40's theoretical hull speed &mdash; implausible for flat-water sailing, but a known and documented thing when a heavy cruiser gets picked up and surfed down a wave face in building following seas, which matches the conditions in this corridor almost exactly. It's corroborated rather than contradicted by this same entry's SOG/STW gap (12.4 vs. 4.0 kt): a hull surfing that fast disturbs the flow under the paddlewheel sensor, which reads low in turbulent/aerated water rather than high &mdash; so the STW anomaly is consistent with a genuine surf event, not two unrelated glitches. Treating this as a real, remarkable moment rather than sensor noise, with the caveat that it's uncorroborated by any second independent source.</p>
+      <p>Course has swung sharply southwest (186.6&deg; &rarr; 243.7&deg;), and the heel/roll figures (-4.1&deg; roll, true wind on the port quarter at 138.4&deg;) read as a boat reaching hard and fast rather than laboring &mdash; no sign of being overpowered, just moving with real intent for the first time this voyage.</p>
+      <p>Confirmed against the latest OPC bulletin (issued almost to the minute of this reading): his box is forecast N winds 20&ndash;25 kt, seas 2.5&ndash;3 m &mdash; a near-exact match to the boat's own 19.5 kt True Wind reading. The breeze forecast yesterday has fully arrived. A broader gale warning sits just north of him (30N&ndash;53N between 121W&ndash;139W, N&ndash;NW 20&ndash;30 kt, seas to 4 m). Tropical Storm Rachel has sharpened and sped up &mdash; now 27.0&deg;N 118.3&deg;W, moving NNE at 26 kt toward an inland Southern California landfall within 24h &mdash; still well east of Phoenix's track, no routing impact at this position. Hurricane Simon (130 kt, major) churns far south near 17.6&deg;N, no factor here.</p>
+      <p><b>On the hour-to-hour heading wander through this period:</b> part of it is likely feed noise (a couple of readings are physically implausible for this boat), but the stretch right around the speed record reads as something more specific and more interesting. In the hour before the 14.5 kt peak, the data shows a near-stall (2.5 kt) followed immediately by an 89&deg; heading swing &mdash; consistent with a broach: running fast downwind in a quartering sea, a wave picks up the stern and shoves the boat forward, and if she slews sideways faster than the helm or autopilot can correct, the bow swings hard off course and speed drops out as the sails stop working efficiently. The likely sequence: broach, a hard correction back onto a workable heading, then a clean wave caught right on the recovery &mdash; which is the speed record itself. Speculative reconstruction from hourly data rather than a confirmed account, but the stall-swing-burst pattern is a clean match for how a broach-and-recovery actually looks on paper, and it's a more coherent story than generic sea-state noise.</p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+114.7 nm</b> (19h00m, avg 6.03 kt)</span>
+      <span>Since departure: <b>+1,057.6 nm</b></span>
+      <span>Elapsed: <b>171h02m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 14 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Friday, October 9 &mdash; 9:48 PM PT</div>
+      <div class="entry-tag">Day 7 &middot; Live, partial instrument read</div>
+    </div>
+    <div class="entry-pos">34&deg;17.903' N &nbsp;129&deg;06.742' W &nbsp;&middot;&nbsp; <b>Point Conception's latitude has been crossed</b> (passed ~8:30 PM PT) &middot; next mark: the US/Mexico border latitude (32&deg;32'N), 105.9 nm of southing away &middot; ~355 nm offshore</div>
+
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">7.0 kt<br><span style="color:#2e7d32;font-size:.8em">&#9650; 3.3 vs Entry 12</span></div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">186.6&deg;<br><span style="color:#c62828;font-size:.8em">&#9660; 15.7&deg; vs Entry 12</span></div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">162.7 nm<br><span style="color:#2e7d32;font-size:.8em">&#9650; 18.2 vs Entry 12</span> / 6.7 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">5.5 kt</div></div>
+      <div class="cell"><div class="k">Max Spd 24h (journey max)</div><div class="v">7.8 kt &middot; holding</div></div>
+    </div>
+
+    <div class="narrative">
+      <p><b>Point Conception is behind him.</b> The crossing falls between the 7:48 PM PT fix (34.530&deg;N) and the 8:49 PM PT fix (34.414&deg;N) in the position array &mdash; interpolating the southing rate between those two puts the actual crossing at roughly <b>8:30 PM PT</b>, a bit ahead of either ETA estimate from Entry 13 (9:15&ndash;9:55 PM), consistent with the building breeze pushing speed above forecast.</p>
+      <p><b>The afternoon dogleg, explained:</b> the steady SW course held through the afternoon (225&ndash;235&deg;) was deliberate &mdash; standing further offshore to give Tropical Storm Rachel plenty of sea room while she was still active nearby. The sharp swing down to a due-south course around 5&ndash;6 PM came once clear of her main effects, confirmed in the data as a genuine gybe: the true wind direction and speed barely changed across the transition (8.9&deg;/12.9kt &rarr; 9.5&deg;/11kt) while the wind angle flipped sign (+156.9&deg; &rarr; -166&deg;) &mdash; the signature of swapping gybes rather than reacting to a wind shift, consistent with resuming a direct course once the storm was no longer a factor.</p>
+      <p><b>Partial data this reading:</b> wind, heading, attitude (yaw/pitch/roll) and STW all came back empty ("-") on this pull &mdash; only Boat Speed, Course, the rolling averages, and distance fields populated. Treating this as a genuine partial transmission rather than an error; grid is shortened accordingly rather than carrying forward stale values from Entry 13.</p>
+      <p><b>Comparator note:</b> Entry 13 (12:24 PM PT) is only 9h25m before this reading &mdash; short of the 12h minimum &mdash; so deltas above are taken against <b>Entry 12</b> (33h48m back) instead.</p>
+      <p><b>AIS check:</b> no independent hit found, consistent with prior entries.</p>
+      <p><b>Weather check:</b> most recent confirmed OPC High Seas issuance remains the 1745 UTC Oct 9 bulletin (gale conditions NE of his box, his sector N&ndash;NW to 25kt building to 20&ndash;30kt, TS Rachel ~760nm SSE tracking toward inland Southern California). That issuance's own stated 6-hour validity window has lapsed by the time of this entry; attempts to force a newer one via cache-busting returned either the same issuance or, once, a stale September bulletin, so no fresher confirmed data is being asserted here. Will retry next entry.</p>
+      <p><b>Voyage distance (odometer method):</b> 13,028.9 &minus; 12,104.7 baseline = <b>924.2 nm over 152h01m, avg 6.08 kt.</b> Leg since Entry 12: <b>205.0 nm over 33h48m, avg 6.06 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+205.0 nm</b> (33h48m, avg 6.06 kt)</span>
+      <span>Since departure: <b>+924.2 nm</b></span>
+      <span>Elapsed: <b>152h01m</b></span>
+    </div>
+  </div>
+
+  <!-- ENTRY 13 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Friday, October 9 &mdash; 12:24 PM PT</div>
+      <div class="entry-tag">Day 6 &middot; Live, full instrument read</div>
+    </div>
+    <div class="entry-pos">35&deg;12.221' N &nbsp;128&deg;40.036' W &nbsp;&middot;&nbsp; approaching the latitude of Point Conception, CA &middot; roughly 325 nm offshore</div>
+
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd (SOG)</div><div class="v">5.5 kt</div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">210.3&deg;</div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">24.9 kt</div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">7.5&deg; (N)</div></div>
+      <div class="cell"><div class="k">SOG / STW</div><div class="v">5.5 / 4.9</div></div>
+      <div class="cell"><div class="k">Apparent Wind Angle</div><div class="v">S123.5&deg;</div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">S138.7&deg;</div></div>
+      <div class="cell"><div class="k">True Heading / Over Water</div><div class="v">215.8&deg; / 210.3&deg;</div></div>
+      <div class="cell"><div class="k">Yaw / Pitch / Roll</div><div class="v">-144.2&deg; / 3.6&deg; / -6.4&deg;</div></div>
+      <div class="cell"><div class="k">24h Run / Avg</div><div class="v">156.8 nm / 6.5 kt</div></div>
+      <div class="cell"><div class="k">7d Avg</div><div class="v">5.5 kt</div></div>
+      <div class="cell"><div class="k">Max Spd 24h</div><div class="v">7.8 kt</div></div>
+      <div class="cell"><div class="k">Lifetime Odometer</div><div class="v">12,980.6 nm</div></div>
+    </div>
+
+    <div class="narrative">
+      <p><b>Full instrument fidelity is back</b> &mdash; a different URL form (<code>tab=boat</code> on the tracker) serves the same rich onboard-instrument panel the earlier screenshots were pulled from, not just the simplified position feed used in the prior version of this entry. One field is visibly bad data and flagged rather than used: <b>Max Boat Speed All Time reads 89.6 kt</b>, impossible for this hull (theoretical hull speed ~7&ndash;7.5 kt) &mdash; almost certainly a sensor glitch at some point in this boat's history, inherited noise rather than anything from this voyage. Treated as unreliable and excluded from analysis, consistent with how the rolling-average caveat in Entry 0 was handled.</p>
+      <p><b>Timestamp correction.</b> This panel displayed itself as "Updated 5:48 PM EDT" (2:48 PM PT) at the moment of the pull &mdash; but every field matches, almost to the decimal, a position-history fix timestamped <b>12:24:27 PM PT</b>, over two hours earlier. The panel's own "Updated" label is not reliable for timing a reading; this entry is timestamped from the matching position-array fix instead, which is the automated version of the scroll-back-to-first-occurrence check used to build it manually.</p>
+      <p><b>AIS check:</b> no independent hit found on public AIS trackers this pass, consistent with prior entries.</p>
+      <p><b>Weather check:</b> OPC High Seas Forecast (confirmed-current issuance, 1745 UTC Oct 9) &mdash; his sector (34N&ndash;43N between 124W&ndash;134W) carries a gale warning immediately to his NE (40N&ndash;43N, E of 126W: N 25&ndash;35 kt) with his own area at N&ndash;NW to 25 kt, seas to 3.5 m, building to 20&ndash;30 kt / 2.5&ndash;4 m over 24h. His own True Wind Speed reading of 24.9 kt is already running above the "to 25 kt" guidance for his box &mdash; he's getting a stronger puff than the broad-area forecast, plausible given gale conditions sit just to his NE. <b>Tropical Storm Rachel</b> (45 kt) remains ~760 nm SSE near 22.8&deg;N 124.6&deg;W, tracking toward an inland Southern California landfall by 48h &mdash; no direct routing conflict at this position, still worth watching as he continues south.</p>
+      <p><b>Reading the numbers:</b> SOG (5.5 kt) sits above STW (4.9 kt) by 0.6 kt &mdash; a modest favorable push, plausible wind/wave drift rather than current in this open-ocean stretch. The yaw/pitch/roll figures (-144.2&deg; / 3.6&deg; / -6.4&deg;) and the 5.1&deg; True-Heading-vs-course gap are consistent with working to windward of dead-downwind in a building 25 kt breeze and building seas, not anything mechanically notable. Separately, a lower-fidelity position-only pull from this same session showed the boat already at 35.093&deg;N, 13.1 kt by 1:48 PM PT &mdash; about an hour after this reading &mdash; so SOG has climbed further since this snapshot, consistent with the building breeze.</p>
+      <p><b>Point Conception</b> (34&deg;27'N) has 45.2 nm of latitude left to close. Empirical rate from the southing made since Entry 12 (2.086&deg; / 125.2 nm over 24h24m): 5.13 nm/h &rarr; <b>~8.8h, ETA tonight around 9:15 PM PT.</b> Instantaneous rate, resolving this entry's 5.5 kt SOG onto due-south (30.3&deg; off course): 4.75 kt of southing &rarr; <b>~9.5h, ETA ~9:55 PM PT.</b> Close agreement between methods this time; given the faster 13.1 kt reading an hour later, the actual crossing is likely earlier than either estimate, probably still tonight.</p>
+      <p>Leg since last entry (Oct 8, 12:00 PM, 24h24m elapsed): <b>146.9 nm, avg 6.02 kt.</b> Cumulative since Neah Bay departure: <b>859.2 nm over 142h37m, avg 6.03 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+146.9 nm</b> (24h24m, avg 6.02 kt)</span>
+      <span>Since departure: <b>+859.2 nm</b></span>
+      <span>Elapsed: <b>142h37m</b></span>
+    </div>
+
+    <div class="narrative" style="margin-top:14px; padding-top:14px; border-top:1px dashed var(--border)">
+      <p><b>Outlook.</b> Gale conditions just NE of him and a building 20&ndash;30kt N&ndash;NW band through 48h &mdash; expect SOG to keep climbing on this reach rather than ease, consistent with the faster reading already seen an hour after this snapshot. Point Conception likely closes tonight. Seas building to 2.5&ndash;4m is now the bigger motion factor for the rest of this leg. No routing conflict from TS Rachel at this position; her inland CA track is worth a re-check as he continues south into that latitude band.</p>
+    </div>
+
+    <div class="narrative" style="margin-top:14px;padding:12px 14px;background:rgba(169,122,63,.08);border-left:3px solid #a97a3f;border-radius:6px">
+      <p><b>Onboard account (Week 1 vlog) — Day 7 ("the next day").</b> The leak was finally traced this day to a hole drilled at the bottom of the propane locker for a grounding-wire stud, with two external drain holes letting water wick in from outside — root cause found after several days' troubleshooting. This lands closest to this entry in our own dating, though the transcript's own day boundary for it is approximate.</p>
+    </div>
+  </div>
+
+  <!-- ENTRY 12 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Thursday, October 8 &mdash; 12:00 PM PT</div>
+      <div class="entry-tag">Day 5 &middot; Live</div>
+    </div>
+    <div class="entry-pos">37&deg;17.392' N &nbsp;127&deg;05.005' W &nbsp;&middot;&nbsp; crossing the latitude of Pigeon Point, CA &middot; ~224 nm offshore</div>
+
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd</div><div class="v">3.7 kt</div><div class="d down">&#9660; 2.2 kt /16h</div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">202.3&deg;</div><div class="d up">&#9650; 17.9&deg; /16h</div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">17.5 kt</div><div class="d down">&#9660; 0.9 kt /16h</div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">346.3&deg; (N)</div><div class="d up">&#9650; 8.3&deg; /16h</div></div>
+      <div class="cell"><div class="k">SOG / STW</div><div class="v">3.7 / 4.3</div><div class="d down">&#9660; 2.2 / 1.1 /16h</div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">S152.3&deg;</div><div class="d up">&#9650; 10.2&deg; /16h</div></div>
+      <div class="cell"><div class="k">Heading</div><div class="v">180.8&deg;</div><div class="d down">&#9660; 1.5&deg; /16h</div></div>
+      <div class="cell"><div class="k">24h Run</div><div class="v">144.5 nm</div></div>
+    </div>
+
+    <div class="narrative">
+      <p><b>Deltas above are vs the Oct 7, 8:00 PM reading</b> (16h0m prior &mdash; the 8:00 AM entry is only 4h back). <b>AIS check</b>: unchanged, still the Oct 5, 14:54 UTC fix, now just shy of 72 hours stale. <b>Weather check</b>: still in zone PZZ925 (Point Arena to Pigeon Point, 150&ndash;250 nm out), same issuance as this morning (2:48 AM): N 15&ndash;25 kt and seas 9&ndash;11 ft tonight, <b>building Friday to N 20&ndash;30 kt and seas 10&ndash;13 ft</b>. His 17.5 kt reading is actually a touch below the current forecast range.</p>
+      <p><b>A 4:00 PM recheck returned an identical readout</b> &mdash; same position, speed, course, wind, and angle down to the decimal, with only the lifetime odometer ticking forward (+18.7 nm over that 4h span, a pace in line with the speeds shown). That pattern &mdash; everything static except the odometer &mdash; matches a feed that isn't refreshing rather than a boat that's actually stopped. The 8 AM&rarr;noon leg shows plausible, steady progress (~30 nm in 4h), so noon is being treated as the last confirmed live reading; the 4 PM pull is dropped as a non-independent repeat rather than logged separately. Watching the next snapshot to confirm the feed has resumed.</p>
+      <p><b>Boat speed dropped noticeably</b> &mdash; 5.8 to 3.7 kt SOG &mdash; despite true wind easing only slightly (19.9 to 17.5 kt), not enough on its own to explain the drop. STW is now fractionally higher than SOG again (4.3 vs 3.7), the second time this gap has flipped negative this voyage. Wind angle has also squared up further toward dead downwind (S152.3&deg;, from S143.9&deg;), which for this hull is typically the slower point of sail than a reach &mdash; a likely contributor. The heading/course offset is back up to 21.5&deg; this entry, in the same range as the 8 PM Oct 6 reading; with several data points now showing this come and go rather than persist, it reads as a recurring, probably wave-driven yaw rather than anything mechanical.</p>
+      <p>He's crossed the latitude of both Point Reyes (overnight) and now <b>Pigeon Point</b> since the last live entry, and has drifted further offshore, now ~224 nm out. <b>Point Conception</b> is the next landmark worth designating &mdash; a major bend in the California coast, and far enough out to be worth tracking rather than another close-spaced cape. The straight-line distance to its coordinates is 364 nm, but most of that is westing he isn't actually closing &mdash; he's not steering at the point, just paralleling the coast. The number that matters is the along-track distance to close the remaining latitude on his current course, which is <b>~184 nm</b>, and the ETA uses his actual <i>southing rate</i> &mdash; the component of his velocity closing that latitude gap &mdash; not raw SOG or STW. The trailing estimate uses the latitude he's actually closed over the last 16h (99.6 nm south, 6.22 nm/h): about <b>27 hours</b>, <b>ETA Friday afternoon, Oct 9</b>. The instantaneous estimate resolves the latest SOG onto his course direction (3.7 kt &times; cos of his angle off due south = 3.42 kt of actual southing): about <b>50 hours</b>, <b>Saturday evening</b>. Wide spread given the feed gap above &mdash; narrows once the next confirmed-live reading comes in.</p>
+      <p><b>Leg since last 12h+ reading (Oct 7, 8:00 PM, 16h0m elapsed): 105.7 nm, avg 6.60 kt.</b> Cumulative since Neah Bay departure: <b>682.2 nm over 118h18m, avg 5.77 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Distance since 12h+ reading: <b>+105.7 nm</b> (16h00m, avg 6.60 kt)</span>
+      <span>Since departure: <b>+682.2 nm</b></span>
+      <span>Elapsed: <b>118h18m</b></span>
+    </div>
+
+    <div class="narrative" style="margin-top:14px; padding-top:14px; border-top:1px dashed var(--border)">
+      <p><b>Outlook.</b> Wind builds Friday to N 20&ndash;30 kt in his current zone &mdash; likely to push SOG back up regardless of what's behind today's dip. The Sunday-night gale watch for the zone further south still hasn't been re-checked since it was first flagged two days ago; with the ETA now landing Friday&ndash;Saturday, he'd reach Point Conception a day or more before that gale timing rather than during it &mdash; worth a re-check next entry to confirm.</p>
+    </div>
+  </div>
+
+  <div class="narrative" style="margin-top:14px;padding:12px 14px;background:rgba(169,122,63,.08);border-left:3px solid #a97a3f;border-radius:6px">
+      <p><b>Onboard account (Week 1 vlog) — Day 6 (cont.).</b> Separately, Oliver mentions he thinks the system he's heading toward will die down by the time he gets there — a second tropical-system reference, more concrete than Day 3's. This log's own first tracked tropical system (Rachel) wasn't picked up until the next day's weather check (Entry 13, Oct 9, ~760 nm away near 22.8&deg;N) — plausibly the same system, caught earlier via his own shore-based routing support than this log's after-the-fact bulletin checks managed to, though that can't be confirmed from the data available here.</p>
+      <p><b>Revisiting this entry's unexplained SOG drop (5.8 → 3.7 kt):</b> the original narrative above considered wind easing and a squarer wind angle as partial contributors but left the gap open. The transcript places the hydrogenerator's control line chafing through around Day 6, with the unit raised out of the water afterward — timing close enough to this entry to raise a real possibility: if the generator was still deployed and dragging before being pulled, that drag alone could account for a meaningful chunk of the speed loss independent of wind. This is a plausible addition to the existing explanation, not a replacement for it — unconfirmed, since the transcript doesn't give an exact time for when the unit was actually raised relative to this reading.</p>
+    </div>
+  </div>
+
+  <!-- ENTRY 11 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Thursday, October 8 &mdash; 8:00 AM PT</div>
+      <div class="entry-tag">Day 5 &middot; Live</div>
+    </div>
+    <div class="entry-pos">37&deg;45.488' N &nbsp;126&deg;52.434' W &nbsp;&middot;&nbsp; abeam Point Reyes, CA &middot; ~193 nm offshore</div>
+
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd</div><div class="v">5.8 kt</div><div class="d down">&#9660; 0.1 kt /12h</div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">208.9&deg;</div><div class="d up">&#9650; 24.5&deg; /12h</div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">19.9 kt</div><div class="d up">&#9650; 1.5 kt /12h</div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">351.1&deg; (N)</div><div class="d up">&#9650; 13.1&deg; /12h</div></div>
+      <div class="cell"><div class="k">SOG / STW</div><div class="v">5.8 / 4.7</div><div class="d down">&#9660; 0.1 / 0.7 /12h</div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">S143.9&deg;</div><div class="d">&#9650; 1.8&deg; /12h</div></div>
+      <div class="cell"><div class="k">Heading</div><div class="v">193.9&deg;</div><div class="d up">&#9650; 11.6&deg; /12h</div></div>
+      <div class="cell"><div class="k">24h Run</div><div class="v">110.2 nm</div></div>
+    </div>
+
+    <div class="narrative">
+      <p><b>Deltas above are vs the Oct 7, 8:00 PM reading</b> (exactly 12h prior). <b>AIS check</b>: still the same Oct 5, 14:54 UTC fix, now nearly 71 hours stale &mdash; continued range loss. <b>Weather check</b>: he's moved out of the 60&ndash;150 nm offshore band and into the 150&ndash;250 nm band for this stretch of coast, so the right zone is now <b>PZZ925</b> (Point Arena to Pigeon Point, 150&ndash;250 nm out), issued 2:48 AM today: N 15&ndash;20 kt and seas 8&ndash;10 ft today, building slightly tonight to N 15&ndash;25 kt and seas 9&ndash;11 ft. His 19.9 kt reading fits comfortably inside that.</p>
+      <p>Worth noting the position shift itself: he's now noticeably farther offshore than at the last few entries &mdash; consistent with either routing around the Pacific High's center or simply the natural bend of a great-circle-ish track as he continues south, not necessarily a deliberate detour. Wind direction has backed further to N (351&deg;, from NW 338&deg;), and his angle is holding steady on a broad reach (S143.9&deg;, essentially flat vs. 12h ago). Boat speed is holding (5.8 kt), though STW eased a bit more than SOG, reopening the gap slightly to 1.1 kt &mdash; nothing dramatic.</p>
+      <p>Milestone reached: he's already essentially crossed the latitude of <b>Point Reyes</b> this entry, well offshore at ~193 nm out.</p>
+      <p><b>Leg since last 12h+ reading (Oct 7, 8:00 PM, 12h0m elapsed): 75.9 nm, avg 6.32 kt.</b> Cumulative since Neah Bay departure: <b>652.4 nm over 114h18m, avg 5.71 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Distance since 12h+ reading: <b>+75.9 nm</b> (12h00m, avg 6.32 kt)</span>
+      <span>Since departure: <b>+652.4 nm</b></span>
+      <span>Elapsed: <b>114h18m</b></span>
+    </div>
+
+    <div class="narrative" style="margin-top:14px; padding-top:14px; border-top:1px dashed var(--border)">
+      <p><b>Outlook.</b> Steady N 15&ndash;25 kt flow expected to hold through tonight in his current zone, building slightly rather than easing. The Sunday-night gale watch flagged yesterday for the zone ahead (PZZ825) hasn't been re-checked this cycle; worth another look as that gets closer. With Point Reyes reached, the next landmark to designate and track is still open.</p>
+    </div>
+  </div>
+
+  <div class="narrative" style="margin-top:14px;padding:12px 14px;background:rgba(169,122,63,.08);border-left:3px solid #a97a3f;border-radius:6px">
+      <p><b>Onboard account (Week 1 vlog) — Day 6.</b> Water still appearing (spray-type, near the floor); bilge pump tested and ruled out as the source. Separately, the hydrogenerator's control line (chafed through) prompted raising the unit out of the water, repair deferred until calmer conditions — context for the boat's power situation, not something visible in the sailing telemetry itself.</p>
+    </div>
+  </div>
+
+  <!-- ENTRY 10 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Wednesday, October 7 &mdash; 8:00 PM PT</div>
+      <div class="entry-tag">Day 5 &middot; Live</div>
+    </div>
+    <div class="entry-pos">38&deg;56.945' N &nbsp;126&deg;20.018' W &nbsp;&middot;&nbsp; crossing the latitude of Point Arena, CA &middot; ~121 nm offshore</div>
+
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd</div><div class="v">5.9 kt</div><div class="d up">&#9650; 0.8 kt /17h</div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">184.4&deg;</div><div class="d up">&#9650; 22.2&deg; /17h</div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">18.4 kt</div><div class="d down">&#9660; 3.4 kt /17h</div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">338.0&deg; (NW)</div><div class="d down">&#9660; 12.5&deg; /17h</div></div>
+      <div class="cell"><div class="k">SOG / STW</div><div class="v">5.9 / 5.4</div><div class="d up">&#9650; 0.8 / 1.9 /17h</div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">S142.1&deg;</div><div class="d down">&#9660; 33.8&deg; /17h</div></div>
+      <div class="cell"><div class="k">Heading</div><div class="v">182.3&deg;</div><div class="d up">&#9650; 21.6&deg; /17h</div></div>
+      <div class="cell"><div class="k">24h Run</div><div class="v">131.7 nm</div></div>
+    </div>
+
+    <div class="narrative">
+      <p><b>Deltas above are vs the Oct 7, 3:00 AM reading</b> (17h0m prior &mdash; the 11:00 AM entry is only 9h back). <b>AIS check</b>: unchanged, still the Oct 5, 14:54 UTC fix, now over 48 hours stale &mdash; continued range loss, nothing new. <b>Weather check</b>: he's sitting almost exactly on the line between NWS's PZZ820 (Point St. George to Point Arena) and PZZ825 (Point Arena to Pigeon Point) zones, both 60&ndash;150 nm offshore and both issued fresh today. PZZ820 has tonight at N 15&ndash;25 kt, seas 7&ndash;10 ft, building Thursday to N 20&ndash;30 kt. PZZ825, covering the stretch ahead, has a gentler tonight (NW 10&ndash;15 kt becoming N 10&ndash;20 kt, seas 6&ndash;9 ft) but flags <b>gale-force winds possible Sunday night</b> &mdash; four days out, worth tracking as he moves into that zone.</p>
+      <p><b>Milestone reached: at the latitude of Point Arena</b>, essentially dead-on, matching this morning's pace-based estimate well. True wind has eased to 18.4 kt from the 29.0 kt overnight high, and his angle has opened further onto a broad reach (S142.1&deg;, continuing the trend off dead-downwind that's tracked with the Pacific High rotating under him through the day). SOG and STW both ticked up slightly (5.9/5.4), keeping the gap modest at 0.5 kt &mdash; no concerns there.</p>
+      <p>No obvious next coastal landmark jumps out yet for this stretch; will flag one once a clearer waypoint (or the transition off the coast) comes into view.</p>
+      <p><b>Leg since last 12h+ reading (Oct 7, 3:00 AM, 17h0m elapsed): 87.5 nm, avg 5.14 kt.</b> Cumulative since Neah Bay departure: <b>576.5 nm over 102h18m, avg 5.64 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Distance since 12h+ reading: <b>+87.5 nm</b> (17h00m, avg 5.14 kt)</span>
+      <span>Since departure: <b>+576.5 nm</b></span>
+      <span>Elapsed: <b>102h18m</b></span>
+    </div>
+
+    <div class="narrative" style="margin-top:14px; padding-top:14px; border-top:1px dashed var(--border)">
+      <p><b>Outlook.</b> Breeze holds through tonight and builds again Thursday in the zone he's currently in (N 20&ndash;30 kt), while the zone ahead stays gentler near-term before that Sunday-night gale flag. Nothing actionable from the gale watch yet at four days out &mdash; just one to keep an eye on as it firms up. No specific landmark ETA this entry pending a next-milestone call.</p>
+    </div>
+  </div>
+
+  <div class="narrative" style="margin-top:14px;padding:12px 14px;background:rgba(169,122,63,.08);border-left:3px solid #a97a3f;border-radius:6px">
+      <p><b>Onboard account (Week 1 vlog) — Day 5 (cont.).</b> No further detail distinguishes this specific hour; general Day 5 context (ongoing leak troubleshooting, seasickness, poor sleep) applies.</p>
+    </div>
+  </div>
+
+  <!-- ENTRY 9 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Wednesday, October 7 &mdash; 11:00 AM PT</div>
+      <div class="entry-tag">Day 4 &middot; Live</div>
+    </div>
+    <div class="entry-pos">39&deg;43.440' N &nbsp;126&deg;00.103' W &nbsp;&middot;&nbsp; ~115 nm NW of Point Arena, CA</div>
+
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd</div><div class="v">5.7 kt</div><div class="d down">&#9660; 0.1 kt /15h</div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">209.4&deg;</div><div class="d up">&#9650; 14.9&deg; /15h</div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">23.3 kt</div><div class="d down">&#9660; 5.7 kt /15h</div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">338.2&deg; (NW)</div><div class="d down">&#9660; 15.1&deg; /15h</div></div>
+      <div class="cell"><div class="k">SOG / STW</div><div class="v">5.7 / 5.0</div><div class="d down">&#9660; 0.1 / 0.9 /15h</div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">S142.3&deg;</div><div class="d down">&#9660; 23.5&deg; /15h</div></div>
+      <div class="cell"><div class="k">Heading</div><div class="v">182.2&deg;</div><div class="d up">&#9650; 8.6&deg; /15h</div></div>
+      <div class="cell"><div class="k">24h Run</div><div class="v">131.0 nm</div></div>
+    </div>
+
+    <div class="narrative">
+      <p><b>Deltas above are vs the Oct 6, 8:00 PM reading</b> (15h0m prior &mdash; the 3:00 AM entry is only 8h back). <b>AIS check</b>: still the identical Oct 5, 14:54 UTC fix &mdash; now about 44 hours stale, confirming continued range loss rather than anything new. <b>Weather check</b>: NWS's offshore forecast for Point St. George to Point Arena, 60&ndash;150 nm out (zone PZZ820 &mdash; the correct band for his ~115 nm offshore position), issued this morning, has N 15&ndash;25 kt and seas 7&ndash;9 ft today, holding into tonight at N 15&ndash;25 kt and seas 7&ndash;10 ft. His 23.3 kt reading sits comfortably inside that range.</p>
+      <p>Wind direction has backed further, from N (353&deg;) toward NW (338&deg;), and wind angle has come off dead-downwind onto a broader starboard reach (S142.3&deg;, from S165.8&deg;) &mdash; consistent with the Pacific High's circulation rotating under him as he moves south, the pattern that's governed his wind angle all voyage. True wind has eased to 23.3 kt from the overnight 29.0 kt high. SOG is essentially flat (5.7 vs 5.8 kt), STW down slightly to 5.0 kt, keeping the SOG/STW gap modest at 0.7 kt.</p>
+      <p>Position puts him well south of Cape Mendocino now and into open water between there and <b>Point Arena</b>, the next landmark worth tracking as he continues down the California coast.</p>
+      <p><b>Leg since last 12h+ reading (Oct 6, 8:00 PM, 15h0m elapsed): 81.0 nm, avg 5.40 kt.</b> Cumulative since Neah Bay departure: <b>527.5 nm over 93h18m, avg 5.65 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Distance since 12h+ reading: <b>+81.0 nm</b> (15h00m, avg 5.40 kt)</span>
+      <span>Since departure: <b>+527.5 nm</b></span>
+      <span>Elapsed: <b>93h18m</b></span>
+    </div>
+
+    <div class="narrative" style="margin-top:14px; padding-top:14px; border-top:1px dashed var(--border)">
+      <p><b>Outlook.</b> NWS has this N 15&ndash;25 kt flow holding steady through tonight, essentially unchanged from today &mdash; no major shift expected in the near term. Along-track distance remaining to close Point Arena's latitude on his current course works out to roughly <b>53 nm</b>. At the current pace (5.7 kt), that's about <b>9&ndash;10 hours</b>, putting the ETA in the evening hours of Wednesday (Oct 7).</p>
+    </div>
+  </div>
+
+  <div class="narrative" style="margin-top:14px;padding:12px 14px;background:rgba(169,122,63,.08);border-left:3px solid #a97a3f;border-radius:6px">
+      <p><b>Onboard account (Week 1 vlog) — Day 5 (cont.).</b> Same day as the leak investigation that follows; locker emptied, gear relocated to the quarter berth, a drain hose run to the bilge. Narrator notes he wasn't fully convinced the leak source had actually been found.</p>
+    </div>
+  </div>
+
+  <!-- ENTRY 8 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Wednesday, October 7 &mdash; 3:00 AM PT</div>
+      <div class="entry-tag">Day 4 &middot; Live</div>
+    </div>
+    <div class="entry-pos">40&deg;24.312' N &nbsp;126&deg;14.989' W &nbsp;&middot;&nbsp; crossing the latitude of Cape Mendocino, CA &middot; ~84 nm offshore</div>
+
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd</div><div class="v">5.1 kt</div><div class="d down">&#9660; 4.9 kt /15h</div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">162.2&deg;</div><div class="d down">&#9660; 40.9&deg; /15h</div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">21.8 kt</div><div class="d down">&#9660; 3.5 kt /15h</div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">350.5&deg; (N)</div><div class="d down">&#9660; 11.5&deg; /15h</div></div>
+      <div class="cell"><div class="k">SOG / STW</div><div class="v">5.1 / 3.5</div><div class="d down">&#9660; 4.9 / 2.5 /15h</div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">S175.9&deg;</div><div class="d up">&#9650; 25.8&deg; /15h</div></div>
+      <div class="cell"><div class="k">Heading</div><div class="v">160.7&deg;</div><div class="d down">&#9660; 37.1&deg; /15h</div></div>
+      <div class="cell"><div class="k">24h Run</div><div class="v">147.8 nm</div></div>
+    </div>
+
+    <div class="narrative">
+      <p><b>Deltas above are vs the Oct 6, 12:00 PM reading</b> (15h0m prior &mdash; the 8:00 PM entry is only 7h back). This is a lighter-touch entry at a sub-8-hour gap, so no fresh AIS/weather pull this cycle &mdash; logged straight from the snapshot.</p>
+      <p><b>Milestone reached: he's now at the latitude of Cape Mendocino</b> (40&deg;24.3'N vs. the cape's 40&deg;26'N &mdash; essentially dead-on), right about where last night's pace-based ETA called it. Worth flagging a new landmark to track next leg rather than continuing to reference Mendocino going forward.</p>
+      <p>Both wind and boat speed have eased since noon &mdash; true wind down to 21.8 kt from the 29.0 kt high logged at 8 PM, and SOG down to 5.1 kt. STW dropped further still, to 3.5 kt, reopening a 1.6 kt SOG/STW gap after it had nearly closed at 8 PM. Wind angle has also squared back up toward dead downwind (S175.9&deg;, from the broader S150.1&deg; reach at noon) as wind direction continues slowly backing. The heading/course gap flagged as a watch-item at 8 PM (then ~21&deg;) is back down to about 1.5&deg; here &mdash; consistent with that having been a transient wobble rather than a developing pattern, though still only two data points on it.</p>
+      <p><b>Leg since last 12h+ reading (Oct 6, 12:00 PM, 15h0m elapsed): 79.7 nm, avg 5.31 kt.</b> Cumulative since Neah Bay departure: <b>485.1 nm over 85h18m, avg 5.69 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Distance since 12h+ reading: <b>+79.7 nm</b> (15h00m, avg 5.31 kt)</span>
+      <span>Since departure: <b>+485.1 nm</b></span>
+      <span>Elapsed: <b>85h18m</b></span>
+    </div>
+  </div>
+
+  <div class="narrative" style="margin-top:14px;padding:12px 14px;background:rgba(169,122,63,.08);border-left:3px solid #a97a3f;border-radius:6px">
+      <p><b>Onboard account (Week 1 vlog) — Day 5.</b> The water leak returned this day, initially suspected to be the diesel heater's exhaust/condensation route rather than the tank issue from Day 2 — a below-decks problem with no expected telemetry signature, but it explains why the narrative turns toward boat-keeping rather than routing through this stretch.</p>
+    </div>
+  </div>
+
+  <!-- ENTRY 7 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Tuesday, October 6 &mdash; 8:00 PM PT</div>
+      <div class="entry-tag">Day 4 &middot; Live</div>
+    </div>
+    <div class="entry-pos">41&deg;03.699' N &nbsp;126&deg;14.566' W &nbsp;&middot;&nbsp; ~95 nm off Trinidad Head, CA</div>
+
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd</div><div class="v">5.8 kt</div><div class="d down">&#9660; 2.6 kt /15h</div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">194.5&deg;</div><div class="d up">&#9650; 25.0&deg; /15h</div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v good">29.0 kt</div><div class="d up">&#9650; 6.1 kt /15h</div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">353.3&deg; (N)</div><div class="d down">&#9660; 9.7&deg; /15h</div></div>
+      <div class="cell"><div class="k">SOG / STW</div><div class="v">5.8 / 5.9</div><div class="d down">&#9660; 2.6 / &#9650; 0.7 /15h</div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">S165.8&deg;</div><div class="d">side flipped P&rarr;S</div></div>
+      <div class="cell"><div class="k">Heading</div><div class="v">173.6&deg;</div><div class="d up">&#9650; 23.4&deg; /15h</div></div>
+      <div class="cell"><div class="k">24h Run</div><div class="v">159.1 nm</div></div>
+    </div>
+
+    <div class="narrative">
+      <p><b>Deltas above are vs the Oct 6, 5:00 AM reading</b> (15h0m prior &mdash; the most recent entry clearing the 12h+ window; the noon entry is only 8h back). <b>AIS check first</b>: still showing the same stale fix from Oct 5 around 13:00&ndash;15:00 UTC &mdash; now roughly 29 hours old. Confirms he remains out of terrestrial AIS range, as expected offshore; no new independent cross-check available this cycle. A live weather check was attempted but the sources reachable this cycle returned data clearly inconsistent with tonight's actual conditions (a buoy observation dated weeks old, a forecast text that didn't match the wind he's logging) &mdash; flagging that rather than presenting stale data as current. This entry relies on the onboard instrument reading itself.</p>
+      <p><b>True wind hit a new voyage-high, 29.0 kt &mdash; but boat speed went the other way, dropping to 5.8 kt SOG</b> from this morning's 8.4 kt and well off yesterday's 10.0 kt peak. That's the opposite of the pattern that's held all voyage (speed tracking wind upward). The more likely read: sail area coming down for the building breeze &mdash; a prudent, expected move in rising wind and a loaded cruising boat, trading speed for control and gear preservation, in keeping with the deliberate bear-away to a broader angle flagged at noon as early heavy-weather handling.</p>
+      <p><b>The SOG/STW gap has essentially closed</b> &mdash; 5.8 vs 5.9 kt, STW now fractionally <i>higher</i> than SOG &mdash; a sharp reversal from this morning's 3.2 kt and noon's 4.0 kt gap. Worth weighing against the two standing explanations: a genuine strengthening following current wouldn't vanish this abruptly, while a calmer ride (if he's reduced sail and slowed down) easing whatever was disturbing the speed-through-water sensor fits the sudden normalization better. Still flagging as unverified, but this reading leans the instrument-effect explanation's way.</p>
+      <p>One more thing worth watching rather than concluding on: <b>True Heading (173.6&deg;) and Course/Heading-over-water (194.5&deg;) differ by about 21&deg;</b> this reading &mdash; a bigger gap than usual. Could be meaningful leeway in the building breeze, or just an instantaneous snapshot catching the bow mid-yaw; one reading isn't enough to say which, so holding this as a watch-item for the next entry rather than a conclusion.</p>
+      <p>Position has him at the latitude of <b>Trinidad Head, CA</b>, ~95 nm offshore &mdash; he's passed Point St. George since noon and is closing on Cape Mendocino.</p>
+      <p><b>Leg since last 12h+ reading (Oct 6, 5:00 AM, 15h0m elapsed): 105.8 nm, avg 7.05 kt.</b> Leg since the noon entry specifically (8h0m): 40.7 nm, avg 5.08 kt &mdash; the slowdown shows clearly once isolated to just this window. Cumulative since Neah Bay departure: <b>445.7 nm over 78h18m, avg 5.69 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Distance since 12h+ reading: <b>+105.8 nm</b> (15h00m, avg 7.05 kt)</span>
+      <span>Since departure: <b>+445.7 nm</b></span>
+      <span>Elapsed: <b>78h18m</b></span>
+    </div>
+
+    <div class="narrative" style="margin-top:14px; padding-top:14px; border-top:1px dashed var(--border)">
+      <p><b>Outlook.</b> No verified live forecast this cycle (see AIS/weather note above), so this is a lighter Outlook than usual. Along-track distance remaining to close Cape Mendocino's latitude (40&deg;26'N) on his current course works out to roughly <b>39 nm</b>. At tonight's slower pace (5.08 kt over the last 8h), that's about <b>8 hours</b> &mdash; putting the ETA in the early-to-mid morning hours of Wednesday (Oct 7), though this is soft given both the pace drop and the unconfirmed conditions; a faster pace would pull it earlier, closer to the prior estimate. Worth a weather re-check next snapshot to firm this back up, and worth watching whether the SOG/STW gap stays closed as a second data point on the current-vs-instrument question.</p>
+    </div>
+  </div>
+
+  <div class="narrative" style="margin-top:14px;padding:12px 14px;background:rgba(169,122,63,.08);border-left:3px solid #a97a3f;border-radius:6px">
+      <p><b>Onboard account (Week 1 vlog) — Day 4 (cont.).</b> Oliver's account of the prior night's conditions — one reef in the main, genoa fully reefed, and in hindsight feeling he should have reefed again — points at the same general stretch of building breeze this entry sits within, though the specific night he's describing is more likely the one before Day 4 began (closer to the Oct 6 dawn entries) than the evening logged here. This entry's own <b>29.0 kt True Wind</b> reading is a real data point in that same build regardless of which exact night his comment refers to. The SOG/STW gap closing hard this entry (5.8 vs 5.9 kt, from 3.2 kt at dawn) is also consistent with the onboard account: by this point he's triple-reefed and worked through a heave-to attempt, and a calmer, more controlled boat would disturb the speed sensor less, supporting the instrument-effect side of this entry's open question over the current-assist explanation.</p>
+    </div>
+  </div>
+
+  <!-- ENTRY 6 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Tuesday, October 6 &mdash; 12:00 PM PT</div>
+      <div class="entry-tag">Day 3 &middot; Live</div>
+    </div>
+    <div class="entry-pos">41&deg;43.550' N &nbsp;126&deg;03.690' W &nbsp;&middot;&nbsp; ~83 nm off Point St. George/Crescent City, CA</div>
+
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd</div><div class="v good">10.0 kt</div><div class="d up">&#9650; 2.8 kt /16h</div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">203.1&deg;</div><div class="d up">&#9650; 18.7&deg; /16h</div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">25.3 kt</div><div class="d up">&#9650; 4.8 kt /16h</div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">2&deg; (N)</div><div class="d down">&#9660; 11.6&deg; /16h</div></div>
+      <div class="cell"><div class="k">SOG / STW</div><div class="v good">10.0 / 6.0</div><div class="d up">&#9650; 2.8 / 0.6 /16h</div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">S150.1&deg;</div><div class="d">side flipped P&rarr;S</div></div>
+      <div class="cell"><div class="k">Heading</div><div class="v">197.8&deg;</div><div class="d up">&#9650; 26.7&deg; /16h</div></div>
+      <div class="cell"><div class="k">24h Run</div><div class="v">169.3 nm</div></div>
+    </div>
+
+    <div class="narrative">
+      <p><b>Another new voyage-high: 10.0 kt SOG</b>. STW is 6.0 kt &mdash; the closest it's come to this hull's ~7&ndash;7.5 kt theoretical limit, but still under it; through the water he's sailing hard but within normal bounds. The 4.0 kt gap between SOG and STW is the widest yet (more below). True wind also hit a new high at 25.3 kt. He's now within the offshore waters zone for Point St. George to Point Arena rather than the Oregon zone, where NWS has today at N 15&ndash;25 kt and seas 8&ndash;11 ft, <b>building further tonight to N 20&ndash;30 kt</b> as a strengthening coastal trough holds through Wednesday. His 25.3 kt reading is already at the top of today's forecast range.</p>
+      <p><b>The wind angle swing here looks like a real, deliberate maneuver, not wind-tracking.</b> True wind direction barely moved (13.6&deg; &rarr; 2.0&deg;, about 12&deg;), but his wind angle flipped sides entirely &mdash; from P172&deg; (port, nearly dead downwind) to S150.1&deg; (starboard, a broader reach). That's a gybe plus a deliberate bear-away from dead-downwind to a broader reaching angle. This is a very standard, sound piece of heavy-weather seamanship: sailing dead downwind in building breeze and big following seas is harder to control (higher risk of an accidental gybe, a broach, or rolling badly), while coming up slightly onto a broader reach is more stable and, with the apparent wind effect, often <i>faster</i>. The timing fits well &mdash; this is exactly the entry where boat speed jumped to its highest reading yet.</p>
+      <p><b>SOG/STW gap continues widening: now 4.0 kt</b> (10.0 vs 6.0), up from 3.2 kt this morning and 1.8 kt last night &mdash; a clean, steady progression tracking the building sea state rather than any specific position, which continues to favor the "speed log struggling in rough following seas" explanation over a strengthening current. Still unverified per our standing caution on this early, unproven tracking setup; SOG remains the trustworthy number.</p>
+      <p>Position has him at the latitude of <b>Point St. George/Crescent City, CA</b> &mdash; well north of Cape Mendocino still, but closing fast on the milestone we've been tracking toward; see Outlook below for the along-track distance estimate.</p>
+      <p><b>Leg since last 12h+ reading (Oct 5, 8:00 PM, 16h18m elapsed): 116.3 nm, avg 7.13 kt</b> &mdash; the fastest trailing-window pace of the voyage so far. Cumulative since Neah Bay departure: <b>405.0 nm over 70h18m, avg 5.76 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Distance since 12h+ reading: <b>+116.3 nm</b> (16h18m, avg 7.13 kt)</span>
+      <span>Since departure: <b>+405.0 nm</b></span>
+      <span>Elapsed: <b>70h18m</b></span>
+    </div>
+
+    <div class="narrative" style="margin-top:14px; padding-top:14px; border-top:1px dashed var(--border)">
+      <p><b>Outlook.</b> This is building, not easing &mdash; NWS has tonight and tomorrow both at N 20&ndash;30 kt with seas 7&ndash;11 ft, a notably stronger and more sustained blow than the Oregon-zone forecast he was sailing in yesterday. This is the strongest weather of the voyage so far. The gybe to a broader, more controlled angle looks like good anticipation of exactly this. Cape Mendocino (40&deg;26'N) is close now. Note this is a distance-to-<i>close the latitude</i> estimate, not distance to the point itself &mdash; he's running parallel to the coast well offshore, not sailing toward the cape, so what matters is the along-track distance until his latitude matches the cape's, holding his current course. That works out to roughly <b>84 nm</b> on his current course. At the current strong trailing pace (7.13 kt) that's about <b>12 hours</b>, <b>putting the ETA back toward late tonight / the very early hours of Wednesday (Oct 7)</b>. This estimate shifts if he alters course before then, unlike a fixed point's distance. Worth a check-in tonight if convenient, given this is both the milestone approach and the roughest conditions logged yet.</p>
+    </div>
+  </div>
+
+  <div class="narrative" style="margin-top:14px;padding:12px 14px;background:rgba(169,122,63,.08);border-left:3px solid #a97a3f;border-radius:6px">
+      <p><b>Onboard account (Week 1 vlog) — Day 4 (cont.).</b> The sail-reduction sequence Oliver describes — second reef in the main, jib furled, whisker pole stowed, staysail set on its own pole, eventually triple-reefed — spans this stretch of entries. This noon entry's new-high 10.0 kt SOG and 25.3 kt True Wind fit right where that sequence would begin, just ahead of the heave-to attempt that follows.</p>
+    </div>
+  </div>
+
+  <!-- ENTRY 6.5 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Tuesday, October 6 &mdash; 1:00&ndash;2:00 PM PT</div>
+      <div class="entry-tag">Day 3 &middot; Historical back-read</div>
+    </div>
+    <div class="entry-pos">41&deg;32.411' N &nbsp;126&deg;06.557' W &nbsp;&middot;&nbsp; roughly in place, ~95 nm off Trinidad Head, CA</div>
+
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd</div><div class="v">2.1 &rarr; 2.2 kt</div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">120.6&deg; &rarr; 231.2&deg;</div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">24.6 &rarr; 24.8 kt</div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">0.2&deg; &rarr; 10.8&deg;</div></div>
+      <div class="cell"><div class="k">SOG / STW</div><div class="v">2.1/1.1 &rarr; 2.2/0.8</div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">P66.1&deg; &rarr; S90.4&deg;</div></div>
+      <div class="cell"><div class="k">Heading</div><div class="v">52.2&deg; &rarr; 266.3&deg;</div></div>
+    </div>
+
+    <div class="narrative">
+      <p><b>Pulled from the hourly history, a quiet hour sandwiched between the noon entry's 10.0 kt high and a return to normal pace by evening</b> &mdash; a one-hour window worth a short note rather than a full entry. Both readings show boat speed collapsed to ~2 kt SOG, with speed through the water lower still (1.1 kt, then 0.8 kt) &mdash; essentially stalled, not just slow. True wind barely moved across the hour (24.6&rarr;24.8 kt, direction swinging only about 10&deg;), so this isn't a wind lull. What did move is the boat itself: course swung 110&deg; and heading swung 214&deg; within that hour, with the wind angle flipping from a port close reach to a starboard beam reach. Point-to-point progress over the hour was barely over a mile.</p>
+      <p>Wind essentially unchanged rules out a weather explanation, which leaves the boat itself as the variable. Reading this as <b>Oliver pausing something</b> &mdash; heaving to, reefing further, a repair, a rest, a sail change &mdash; rather than a problem the data can diagnose from here. This is a personal voyage, not a race against a clock, so a deliberate hour off pace isn't itself notable; it's the kind of thing that would only matter if it kept recurring or extending. Readings both before (noon) and after (6 PM) show him back to a normal sailing pace, so treating this as a one-off pause rather than an ongoing pattern. Leaving the cause open &mdash; nothing in the telemetry says what, only that something changed for an hour.</p>
+    </div>
+  </div>
+
+  <div class="narrative" style="margin-top:14px;padding:12px 14px;background:rgba(169,122,63,.08);border-left:3px solid #a97a3f;border-radius:6px">
+      <p><b>Onboard account (Week 1 vlog) — Day 4 (cont.), and this one is almost certainly resolved.</b> Oliver's own account: he <b>practiced heaving-to</b> during Day 4, and by his description it didn't stop the boat &mdash; it kept making roughly 1 kt with a slick off the aft quarter rather than sitting properly parked. That's a close match for what this entry's telemetry shows independently: boat speed collapsed to ~2 kt SOG (1.1 then 0.8 kt STW &mdash; effectively stalled) while wind barely moved, and course/heading swung wildly (110&deg;/214&deg; within the hour) rather than holding a line &mdash; exactly the signature of a heave-to that isn't locking in, drifting and slowly rotating rather than cleanly stopped. What was logged at the time as "Oliver pausing something, cause unknown" can now be read with real confidence: this was the heaving-to attempt, visibly not working as intended — consistent with him then calling "Jerome" for advice and ending up more controlled afterward.</p>
+    </div>
+  </div>
+
+  <!-- ENTRY 5 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Tuesday, October 6 &mdash; 5:00 AM PT</div>
+      <div class="entry-tag">Day 3 &middot; Live</div>
+    </div>
+    <div class="entry-pos">42&deg;49.405' N &nbsp;126&deg;10.354' W &nbsp;&middot;&nbsp; ~71 nm off Cape Blanco, OR</div>
+
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd</div><div class="v good">8.4 kt</div><div class="d up">&#9650; 0.7 kt /12h+</div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">169.5&deg;</div><div class="d up">&#9650; 11.4&deg; /12h+</div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">22.9 kt</div><div class="d up">&#9650; 3.2 kt /12h+</div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">3&deg; (N)</div><div class="d up">&#9650; 1.4&deg; /12h+</div></div>
+      <div class="cell"><div class="k">SOG / STW</div><div class="v good">8.4 / 5.2</div><div class="d">&#9650; 0.7 / &#9660; 0.8 /12h+</div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">P161.5&deg;</div><div class="d">&#9660; 2.0&deg; /12h+</div></div>
+      <div class="cell"><div class="k">Heading</div><div class="v">150.2&deg;</div><div class="d">&#9660; 0.4&deg; /12h+</div></div>
+      <div class="cell"><div class="k">24h Run</div><div class="v">142.1 nm</div></div>
+    </div>
+
+    <div class="narrative">
+      <p><b>AIS check first</b>: still frozen on the same Oct 5, 13:05 UTC fix &mdash; now 16 hours stale. He's fully out of terrestrial range for the time being, as expected; this log remains the primary data source until he's back within range of a coast somewhere down the line.</p>
+      <p><b>8.4 kt is a new high for the voyage</b> in SOG, beating last evening's 7.7 kt peak, with true wind also topping out this leg at 22.9 kt &mdash; squarely in the upper half of NWS's overnight N 15&ndash;25 kt forecast. STW, though, is 5.2 kt &mdash; comfortably under this hull's ~7&ndash;7.5 kt theoretical limit, same as every reading so far. The gap between the two (now 3.2 kt) is where the "new high" is actually coming from, not the boat itself moving unusually fast through the water.</p>
+      <p><b>Worth flagging: the SOG/STW gap has been widening steadily across the last several readings</b> &mdash; roughly +0.7, +1.0, +1.7, +1.8, and now <b>+3.2 kt</b> over the last six entries. Two plausible explanations, not mutually exclusive: (1) a genuine, strengthening following current or wave-orbital push beneath the hull, or (2) the paddlewheel speed log under-reading as it fouls, aerates, or loses clean flow contact in increasingly rough, breaking following seas &mdash; a well-known limitation of through-hull speed sensors in big downwind conditions, and arguably the more likely explanation given it's tracked almost exactly with the building sea state rather than any specific position. Flagging as unverified per our standing practice around instrumentation in this early, unproven tracking setup; GPS-derived SOG remains the trustworthy number for pace and ETA purposes either way.</p>
+      <p>Position puts him at the latitude of <b>Cape Blanco, OR</b> &mdash; still in Oregon waters, closing on the California border over the next leg.</p>
+      <p><b>Leg since last 12h+ reading (Oct 5, 5:00 PM, 12h0m elapsed): 70.9 nm, avg 5.91 kt.</b> Cumulative since Neah Bay departure: <b>340.8 nm over 63h00m, avg 5.41 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Distance since 12h+ reading: <b>+70.9 nm</b> (12h00m, avg 5.91 kt)</span>
+      <span>Since departure: <b>+340.8 nm</b></span>
+      <span>Elapsed: <b>63h00m</b></span>
+    </div>
+
+    <div class="narrative" style="margin-top:14px; padding-top:14px; border-top:1px dashed var(--border)">
+      <p><b>Outlook.</b> NWS Portland/OPC guidance still has this N flow holding 15&ndash;25 kt through tonight, easing to 10&ndash;20 kt Thursday and 10&ndash;15 kt by Thursday night as the Pacific High slides east over these waters. He's currently sailing in the strongest breeze of this cycle. Along-track distance remaining to close Cape Mendocino's latitude (40&deg;26'N) is roughly <b>145 nm</b>; at the trailing 12h pace (5.91 kt), that works out to about 24&ndash;25 hours &mdash; <b>putting the ETA around early Wednesday morning (Oct 7)</b>, essentially matching last night's estimate. Watch for the SOG/STW gap to narrow if sea state moderates as forecast &mdash; that would support the instrument-fouling read over the current-assist read.</p>
+    </div>
+  </div>
+
+  <div class="narrative" style="margin-top:14px;padding:12px 14px;background:rgba(169,122,63,.08);border-left:3px solid #a97a3f;border-radius:6px">
+      <p><b>Onboard account (Week 1 vlog) — Day 4.</b> This is where the transcript's "large swells arrived; breaking waves, surfing waves at times" begins, and it reframes this entry's widening SOG/STW gap (3.2 kt) usefully: rather than choosing between "current" and "instrument fouling," the onboard account describes exactly the sea state — breaking, surfing waves — that would both aerate the paddlewheel sensor and genuinely add wave-orbital push to SOG. Both mechanisms discussed in this entry were likely operating together, triggered by the conditions he's independently describing.</p>
+    </div>
+  </div>
+
+  <!-- ENTRY 4 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Monday, October 5 &mdash; 8:00 PM PT</div>
+      <div class="entry-tag">Day 3 &middot; Live</div>
+    </div>
+    <div class="entry-pos">43&deg;39.638' N &nbsp;126&deg;12.968' W &nbsp;&middot;&nbsp; ~84 nm off Coos Bay, OR</div>
+
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd</div><div class="v good">7.2 kt</div><div class="d up">&#9650; 2.0 kt /12h+</div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">184.4&deg;</div><div class="d down">&#9660; 17.9&deg; /12h+</div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">20.5 kt</div><div class="d up">&#9650; 7.6 kt /12h+</div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">14&deg; (NNE)</div><div class="d up">&#9650; 18.4&deg; /12h+</div></div>
+      <div class="cell"><div class="k">SOG / STW</div><div class="v good">7.2 / 5.4</div><div class="d up">&#9650; 2.0 / 0.9 /12h+</div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">P172&deg;</div><div class="d">side flipped S&rarr;P</div></div>
+      <div class="cell"><div class="k">Heading</div><div class="v">171.1&deg;</div><div class="d down">&#9660; 13.0&deg; /12h+</div></div>
+      <div class="cell"><div class="k">24h Run</div><div class="v">141.1 nm</div></div>
+    </div>
+
+    <div class="narrative">
+      <p><b>Deltas above are vs the Oct 4, 8:00 PM reading</b> (24h0m prior &mdash; the most recent entry clearing the 12h+ window). <b>AIS check first</b>: public AIS hasn't updated since this morning's fix (13:05 UTC) &mdash; same position, speed, and course as our pre-snapshot check, over 14 hours stale now. Reading this as terrestrial AIS losing him to range, not a data problem on his end; he's far enough offshore that coastal receivers likely can't hear his transponder anymore, and satellite-AIS relay (if his unit even reports to one) typically lags much further behind live. From here forward, AIS is likely to go quiet for extended stretches until he's back within range of a coast sometime in the future &mdash; your instrument snapshots become the primary source again.</p>
+      <p><b>7.2 kt SOG is the fastest reading logged yet</b>, with STW at 5.4 kt &mdash; still comfortably within this hull's normal range, nothing unusual happening through the water yet. True wind has built to 20.5 kt, exactly matching NWS Portland's forecast for N 20&ndash;25 kt overnight tonight with seas 7&ndash;9 ft. He's still essentially dead downwind (TWA P172&deg;). The SOG/STW gap has grown to 1.8 kt, a mild upward drift worth tracking as conditions build further.</p>
+      <p>The course swing we flagged this morning (202&deg;&rarr;168.5&deg;) has partially reversed, now at 184.4&deg; &mdash; back toward due south. This isn't a tactical turn: wind direction has veered from 354&deg; to 14&deg; (about +20&deg; clockwise) between the two readings, and since he's sailing almost dead downwind both times, his course is simply following the wind's rotation (course &asymp; wind direction + 180&deg; holds closely in both readings). The apparent "zigzag" in his track is the wind shifting under a constant sailing angle, not him changing strategy.</p>
+      <p><b>Leg since last 12h+ reading (Sun 8:00 PM, 24h0m elapsed): 147.5 nm, avg 6.15 kt.</b> Cumulative since Neah Bay departure: <b>306.1 nm over 54h0m, avg 5.67 kt.</b> Both legs since the ridge built in have run faster than the opening day &mdash; the freshening breeze is translating directly into pace, as expected for a boat this well-mannered downwind.</p>
+    </div>
+
+    <div class="delta">
+      <span>Distance since 12h+ reading: <b>+147.5 nm</b> (24h0m, avg 6.15 kt)</span>
+      <span>Since departure: <b>+306.1 nm</b></span>
+      <span>Elapsed: <b>54h00m</b></span>
+    </div>
+
+    <div class="narrative" style="margin-top:14px; padding-top:14px; border-top:1px dashed var(--border)">
+      <p><b>Outlook.</b> NWS Portland/OPC offshore guidance has this N flow holding 20&ndash;25 kt tonight, easing to 10&ndash;20 kt Thursday as the Pacific High itself begins sliding east over these waters, then down to 5&ndash;15 kt by the weekend as the High takes over the airspace directly overhead. Expect tonight to be his fastest sailing of the leg so far, with pace likely tapering by Wednesday&ndash;Thursday as the breeze softens. At the current pace, the ~190 nm remaining to close Cape Mendocino's latitude (40&deg;26'N) works out to roughly 30&ndash;33 hours &mdash; <b>putting a revised ETA around Tuesday night into Wednesday (Oct 6&ndash;7)</b>, earlier than this morning's estimate, on the strength of tonight's stronger breeze. Watch for the pace to soften before he actually gets there if the Thursday easing arrives first.</p>
+    </div>
+  </div>
+
+  <div class="narrative" style="margin-top:14px;padding:12px 14px;background:rgba(169,122,63,.08);border-left:3px solid #a97a3f;border-radius:6px">
+      <p><b>Onboard account (Week 1 vlog) — Day 3 (cont.).</b> Building wind through the day fits a boat still "settling in" under the freshening ridge flow Oliver describes, ahead of the heavier weather to come on Day 4.</p>
+    </div>
+  </div>
+
+  <!-- ENTRY 3.5 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Monday, October 5 &mdash; 5:00 PM PT</div>
+      <div class="entry-tag">Day 3 &middot; Historical back-read</div>
+    </div>
+    <div class="entry-pos">44&deg;00.138' N &nbsp;126&deg;17.973' W &nbsp;&middot;&nbsp; ~95 nm off Florence, OR</div>
+
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd</div><div class="v good">7.7 kt</div><div class="d up">&#9650; 2.5 kt /12h+</div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">158.1&deg;</div><div class="d down">&#9660; 44.2&deg; /12h+</div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">19.7 kt</div><div class="d up">&#9650; 6.8 kt /12h+</div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">2&deg; (N)</div><div class="d up">&#9650; 6.5&deg; /12h+</div></div>
+      <div class="cell"><div class="k">SOG / STW</div><div class="v good">7.7 / 6.0</div><div class="d up">&#9650; 2.5 / 1.5 /12h+</div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">P163.5&deg;</div><div class="d">side flipped S&rarr;P</div></div>
+      <div class="cell"><div class="k">Heading</div><div class="v">150.6&deg;</div><div class="d down">&#9660; 33.5&deg; /12h+</div></div>
+      <div class="cell"><div class="k">24h Run</div><div class="v">137.1 nm</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>Pulled from the tracker's hourly history (grey, not live) because it marks <b>the fastest boat speed logged yet this voyage &mdash; 7.7 kt</b>, matching exactly the "Max Boat Speed 24h" field reported three hours later in the 8:00 PM entry. Good internal cross-check: the instrument's own rolling max and this independently-pulled hourly reading agree exactly. Per procedure for a historical back-read capturing a specific point of interest, this entry skips the fresh AIS/weather re-check; conditions context carries over from the surrounding live entries.</p>
+      <p><b>Revisiting the course question from the last entry's discussion</b>, now with a third data point to triangulate: wind direction across these three readings (11:00 AM 354.3&deg; &rarr; 5:00 PM 1.7&deg; &rarr; 8:00 PM 13.6&deg;) has been veering slowly and steadily, about 10&deg; every few hours. Course, meanwhile, has swung 168.5&deg; &rarr; 158.1&deg; &rarr; 184.4&deg; &mdash; and wind angle has wobbled along with it (170.9&deg; &rarr; 163.5&deg; &rarr; 172.0&deg;, all to port). Rather than a single deliberate "jog out and back," this looks more like <b>continuous small course/trim corrections layered on top of a slowly veering wind</b> &mdash; the kind of ongoing helm or autopilot management you'd expect sailing close to dead downwind in building breeze, where small adjustments prevent an accidental gybe and keep the ride comfortable, rather than one discrete routing decision. The net drift over the whole window (202&deg; at Sunday evening to 184&deg; now) is modest; the apparent swings in between are this minute-to-minute management, not waypoint-chasing.</p>
+      <p>Leg since last 12h+ reading (Oct 4, 8:00 PM, 21h00m elapsed): <b>127.2 nm, avg 6.06 kt.</b></p>
+    </div>
+
+    <div class="delta">
+      <span>Distance since 12h+ reading: <b>+127.2 nm</b> (21h00m, avg 6.06 kt)</span>
+      <span>Since departure: <b>+272.8 nm</b></span>
+      <span>Elapsed: <b>51h00m</b></span>
+    </div>
+  </div>
+
+  <div class="narrative" style="margin-top:14px;padding:12px 14px;background:rgba(169,122,63,.08);border-left:3px solid #a97a3f;border-radius:6px">
+      <p><b>Onboard account (Week 1 vlog) — Day 3 (cont.).</b> Same building-wind picture as the entry before — new-high SOG and freshening breeze consistent with Oliver's account of the ridge strengthening.</p>
+    </div>
+  </div>
+
+  <!-- ENTRY 3 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Monday, October 5 &mdash; 11:00 AM PT</div>
+      <div class="entry-tag">Day 2 &middot; Live</div>
+    </div>
+    <div class="entry-pos">44&deg;33.909' N &nbsp;126&deg;32.534' W &nbsp;&middot;&nbsp; ~106 nm off Newport, OR</div>
+
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd</div><div class="v">5.5 kt</div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">168.5&deg;</div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">15.8 kt</div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">354&deg; (N)</div></div>
+      <div class="cell"><div class="k">SOG / STW</div><div class="v good">5.5 / 4.5</div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">P171&deg;</div></div>
+      <div class="cell"><div class="k">Heading</div><div class="v">150.5&deg;</div></div>
+      <div class="cell"><div class="k">24h Run</div><div class="v">131.5 nm</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>First independent cross-check before this snapshot: public AIS (MyShipTracking) had him at 44&deg;59.8'N 126&deg;26.8'W, 6.7 kt, course 204&deg;, about 5 hours prior &mdash; consistent with the track continuing south through that window. The two sources agree well on trajectory.</p>
+      <p><b>The course has swung from 202&deg; to 168.5&deg;</b> &mdash; a ~34&deg; bend to the east of the prior heading, now almost due south rather than SSW. Wind has also freshened (12.9 &rarr; 15.8 kt) and gone almost dead astern (TWA now P171&deg;, essentially a dead run, versus S156&deg; before). This reads as a boat still riding the same N&ndash;NNW flow on the east side of the Pacific High, but the increased wind speed and more-downwind angle is consistent with the ridge building and strengthening overhead, exactly as NWS Portland's offshore forecast called for (N wind 15&ndash;25 kt tonight into Tuesday, seas 6&ndash;8 ft, high pressure building over these waters through the weekend).</p>
+      <p><b>Leg distance since the last confirmed reading (Sun 8:00 PM): ~95 nm in 15h20m, averaging 6.2 kt</b> &mdash; a step up from the prior leg's 5.4 kt average, and in line with the freshening breeze. Cumulative distance since Neah Bay departure: <b>~250 nm over 45h20m elapsed (avg 5.5 kt)</b>. Position also drifted slightly further offshore (west) even while the course swings more southerly &mdash; the beginning of the gentle bend in his track relative to a straight rhumb line that we flagged as worth watching for his handling of the Pacific High.</p>
+    </div>
+
+    <div class="delta">
+      <span>Leg: <b>+95.1 nm</b> (15h20m, avg 6.2 kt)</span>
+      <span>Since departure: <b>+250.0 nm</b></span>
+      <span>Elapsed: <b>45h20m</b></span>
+    </div>
+  </div>
+
+  <div class="narrative" style="margin-top:14px;padding:12px 14px;background:rgba(169,122,63,.08);border-left:3px solid #a97a3f;border-radius:6px">
+      <p><b>Onboard account (Week 1 vlog) — Day 3.</b> Oliver reports feeling better and settling in, the boat "eating up" the sea state well — consistent with the comfortable downwind sailing logged here. More significant: he mentions a forecast for 25 kt gusts and <b>a hurricane in the region</b>, relayed via his shore-based router ("Josh, Offwatch Labs"). This predates this log's own confirmed-weather-check habit by several days (that didn't start until Entry 13, Oct 9) — no independent bulletin here to corroborate it. Worth noting as the first tropical-system mention of the whole voyage, well before Trudy ever appears; plausibly an early reference to what would later be tracked here as Rachel, though that can't be confirmed from available data.</p>
+    </div>
+  </div>
+
+  <!-- ENTRY 2 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Sunday, October 4 &mdash; 8:00 PM PT</div>
+      <div class="entry-tag">Day 2 &middot; Live</div>
+    </div>
+    <div class="entry-pos">46&deg;06.982' N &nbsp;126&deg;04.569' W &nbsp;&middot;&nbsp; unchanged from prior reading</div>
+
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd</div><div class="v">5.2 kt</div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">202.3&deg;</div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">12.9 kt</div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">355&deg; (N)</div></div>
+      <div class="cell"><div class="k">SOG / STW</div><div class="v good">5.2 / 4.5</div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">S156&deg;</div></div>
+      <div class="cell"><div class="k">Yaw / Pitch / Roll</div><div class="v">-175.9&deg; / -2.8&deg; / -5.6&deg;</div></div>
+      <div class="cell"><div class="k">24h Run</div><div class="v">127.1 nm</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>Confirmed live (red "NOW" on the tracker, not a historical scrub) roughly 1h14m after the prior reading. Every field &mdash; position, boat speed, course, wind, SOG/STW &mdash; is identical to the 6:46 PM entry, and the 24h distance figure actually <b>dropped</b> (138.8 &rarr; 127.1 nm) while the lifetime odometer held flat at 12,261.5 nm. At 5.2 kt, roughly 6&ndash;7 nm of travel should have registered in that window and didn't.</p>
+      <p>Reading this as an <b>instrument/feed artifact, not an actual stall</b>: a boat genuinely parked for over an hour in 12.9 kt of breeze on a broad reach would be a much bigger story (gear trouble, deliberate heave-to) and nothing else in the data supports that. Most likely the position/odometer fields on this tracker refresh on a coarser cycle than the "live" instantaneous readout. Logging it as a confirmation of the prior entry rather than a new waypoint &mdash; worth flagging again only if a future snapshot shows the same pattern.</p>
+    </div>
+  </div>
+
+  <div class="narrative" style="margin-top:14px;padding:12px 14px;background:rgba(169,122,63,.08);border-left:3px solid #a97a3f;border-radius:6px">
+      <p><b>Onboard account (Week 1 vlog) — Day 2 (cont.).</b> Same day as the leak discovery that follows; no new onboard detail distinguishes this specific hour in the transcript.</p>
+    </div>
+  </div>
+
+  <!-- ENTRY 1 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Sunday, October 4 &mdash; 6:46 PM PT</div>
+      <div class="entry-tag">Day 2</div>
+    </div>
+    <div class="entry-pos">46&deg;06.982' N &nbsp;126&deg;04.569' W &nbsp;&middot;&nbsp; ~83 nm off the Columbia River mouth, WA/OR</div>
+
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd</div><div class="v">5.2 kt</div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">202.3&deg;</div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">12.9 kt</div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">355&deg; (N)</div></div>
+      <div class="cell"><div class="k">SOG / STW</div><div class="v good">5.2 / 4.5</div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">S156&deg;</div></div>
+      <div class="cell"><div class="k">Heading</div><div class="v">184.1&deg;</div></div>
+      <div class="cell"><div class="k">24h Run</div><div class="v">138.8 nm</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>Clear of the strait and turned south down the Washington coast on a broad reach, wind almost dead astern (TWA 156&deg;S) in a building <b>N&ndash;NNW ridge flow</b> &mdash; consistent with NWS Portland's offshore guidance calling for high pressure building over these waters through the weekend, winds N/NW, seas easing. He's roughly 83 nm offshore here, at the latitude of the Columbia River mouth.</p>
+      <p>SOG running 0.7 kt above STW, and true heading (184.1&deg;) sits 18&deg; left of course over ground (202.3&deg;) &mdash; a modest favorable set, most likely wind-driven surface drift rather than a current feature; this stretch of coast has no major current band like a boundary current.</p>
+      <p><b>154.9 nm made good since departure</b> (28h 46m, avg 5.4 kt) &mdash; a strong start, mostly downwind/broad-reach work exiting the strait and turning onto the coastal run south.</p>
+    </div>
+
+    <div class="delta">
+      <span>Since departure: <b>+154.9 nm</b></span>
+      <span>Elapsed: <b>28h 46m</b></span>
+      <span>Avg over leg: <b>5.4 kt</b></span>
+    </div>
+  </div>
+
+  <div class="narrative" style="margin-top:14px;padding:12px 14px;background:rgba(169,122,63,.08);border-left:3px solid #a97a3f;border-radius:6px">
+      <p><b>Onboard account (Week 1 vlog) — Day 2.</b> Wind easing from the overnight high and a switch to wing-on-wing (main to port, genoa poled to starboard) matches this entry's moderate, dead-downwind conditions well. The day's bigger event was below decks: a cracked water-tank inspection hatch found leaking into the bunk, sealed with a bead of sealant rather than fasteners. Nothing in the telemetry would show a below-decks leak directly, but it's useful context for why the next several days' narrative turns inward toward boat-keeping rather than pure passage-making.</p>
+    </div>
+  </div>
+
+  <!-- ENTRY 0 -->
+  <div class="entry">
+    <div class="entry-top">
+      <div class="entry-date">Saturday, October 3 &mdash; 2:00 PM PT</div>
+      <div class="entry-tag">Day 1 &middot; Departure</div>
+    </div>
+    <div class="entry-pos">48&deg;23.993' N &nbsp;124&deg;37.947' W &nbsp;&middot;&nbsp; off Neah Bay, mouth of the Strait of Juan de Fuca</div>
+
+    <div class="grid">
+      <div class="cell"><div class="k">Boat Spd</div><div class="v">4.6 kt</div></div>
+      <div class="cell"><div class="k">Course</div><div class="v">280.2&deg;</div></div>
+      <div class="cell"><div class="k">True Wind</div><div class="v">10.1 kt</div></div>
+      <div class="cell"><div class="k">Wind Dir</div><div class="v">88&deg; (E)</div></div>
+      <div class="cell"><div class="k">SOG / STW</div><div class="v good">4.6 / 2.9</div></div>
+      <div class="cell"><div class="k">True Wind Angle</div><div class="v">S165&deg;</div></div>
+      <div class="cell"><div class="k">Heading</div><div class="v">268.2&deg;</div></div>
+      <div class="cell"><div class="k">Yaw / Pitch</div><div class="v">-91.8&deg; / 6.3&deg;</div></div>
+    </div>
+
+    <div class="narrative">
+      <p>Baseline reading, taken as Phoenix cleared Neah Bay outbound on the ebb. Running almost dead downwind (TWA 165&deg;S) in a light E breeze off the land. The standout number is <b>SOG 4.6 kt against STW of only 2.9 kt</b> &mdash; 1.7 kt of boat speed that isn't wind-driven. The Strait of Juan de Fuca is known for a strong ebb current at its mouth (routinely 1&ndash;3 kt), so this is almost certainly tidal current giving him a free push out to sea rather than anything unusual with the boat.</p>
+      <p>This is entry zero: the rolling 24h/7d average-speed and max-speed fields on the instrument read are not meaningful yet (they're inherited from however the system was seeded) and are being <b>dropped from the log</b> until there's enough elapsed time for them to reflect this voyage rather than noise. Distance-traveled-total is a lifetime boat odometer, not a trip counter &mdash; tracked here only to derive leg distance between snapshots.</p>
+    </div>
+
+    <div class="narrative" style="margin-top:14px;padding:12px 14px;background:rgba(169,122,63,.08);border-left:3px solid #a97a3f;border-radius:6px">
+      <p><b>Onboard account (Week 1 vlog) — Day 1.</b> Oliver's own account: motored ~15hr to Neah Bay beforehand, departed ~1:30 PM (close to this entry's 2:00 PM baseline), immediately wing-on-wing with the main already carrying a reef. He describes still tacking offshore between two islands at this point, consistent with the course here (280.2&deg;, WNW) still working out of the strait rather than yet turned south. The <b>Hydrovane</b> comes up later in his Day 1 narration, after the wind had built — direct confirmation of the self-steering setup referenced elsewhere in this log, though probably engaged a bit into the day rather than from the literal moment of departure. The SOG/STW gap flagged in this entry (4.6 vs 2.9 kt, read as ebb-current push) lines up with a boat only just getting underway, not yet settled into open-ocean routine. He also mentions reefing further and seeing ~7 kt overnight — consistent with the freshening conditions picked up by the next morning's entries.</p>
+    </div>
+  </div>
+
+  <footer>
+    <b>Methodology.</b> Positions and boat telemetry come from Oliver's live instrument snapshots, from Entry 13 onward sourced via an automated pull of the tracker's <code>tab=boat</code> view, which carries the same full instrument panel (SOG, STW, true/apparent wind, heading, yaw/pitch/roll, rolling averages, lifetime odometer) as the manual screenshots &mdash; the plain position feed is used only as a fallback when that fuller pull isn't available, and is flagged as reduced when it is. The panel's own "Updated" timestamp is unreliable and can lag its actual data by hours; every automated entry is timestamped by matching its displayed position against the position-history array instead, the automated equivalent of manually scrubbing back to the first occurrence of that reading. Weather and sea-state context is drawn only from NWS Offshore/Coastal Waters Forecasts, NDBC buoy observations, and the Ocean Prediction Center's High Seas Forecasts &mdash; not from race press or media coverage. OPC's ocean.weather.gov text pages can serve a cached/stale issuance; appending a dummy query string (e.g. <code>?cachebust=1</code>) reliably forces a fresh pull &mdash; use this on every weather check going forward. Rolling averages (24h/7d) are excluded from analysis until enough entries accumulate for them to be meaningful; until then, speed-over-ground is computed directly between consecutive snapshots. <b>Day numbering</b> is anchored to the Oct 3, 2:00 PM PT Neah Bay departure, fixed to that clock rather than shifting with time zones crossed underway: Day 1 begins at departure, and Day N = floor(elapsed hours &divide; 24) + 1. Day 0 is reserved for the pre-departure Neah Bay transit. This replaces an earlier, drifting day-count used in the first several entries, corrected throughout on Oct 19.
+    <br><br>
+    <b>Reading the snapshots.</b> The clock at the top of each screenshot is when it was taken (Pacific time); the timestamp above the tracker's time-slider is the timestamp of the data shown, moving in 1-hour increments. A red "NOW" means that data is live to the moment; a grey marker means it's a historical reading for that hour, scrubbed back deliberately. Entries logged here are live reads unless noted otherwise.
+    <br><br>
+    <b>Delta window.</b> Every entry's deltas &mdash; both the per-instrument changes shown directly on the stat grid (boat speed, course, true wind, wind direction, SOG/STW, heading) and the distance/pace summary below the narrative &mdash; are computed against the most recent prior entry that is <b>at least 12 hours older</b>, a sliding window rather than simply "the previous entry." This keeps deltas meaningful even if snapshots are occasionally taken close together (for a specific event of interest); a short gap just slides the comparison point back further until it clears 12 hours. Early in the voyage, before 12+ hours of entries exist, the oldest available entry is used instead.
+    <br><br>
+    <b>Entry procedure.</b> For any snapshot taken 8+ hours after the prior entry, the full workup is followed: check live AIS as an independent cross-check, read the snapshot, check current weather/forecast conditions for his position, then write the entry with an added <b>Outlook</b> section covering near-term expectations. Snapshots taken at shorter intervals &mdash; typically to capture a specific event, or a deliberate historical back-read rather than a live reading &mdash; are logged directly without the full re-check, since not enough time has passed for the broader picture to have moved.
+    <br><br>
+    <b>Position descriptor.</b> The plain-language line under each entry's coordinates (e.g. "~83 nm off Point St. George, CA") is a human-readable orientation only &mdash; it is computed fresh each entry from the actual lat/long and is never used in any of the quantitative distance/pace figures elsewhere in that entry, which come directly from the coordinates themselves. While he's running roughly parallel to a coastline, it names the single nearest charted point and the perpendicular offshore distance to it. That framing stops applying once he's on an open-ocean leg with no nearby coast (crossing the Pacific toward the equator, the equatorial crossing itself, the Southern Ocean easting after Cape Horn, open South Atlantic/Pacific stretches); for those legs the line switches to a milestone-relative format instead (distance/bearing to the next meaningful waypoint, or a basin/latitude-band description). For any coastal milestone he'll cross the latitude of rather than sail directly toward (a cape, a landmark well inside the coastline), the relevant figure is the along-track distance to close that latitude on his current course &mdash; not the straight-line distance to the point itself, which overstates progress by however much of it is westing/easting he isn't actually closing. ("Abeam" was used loosely in earlier entries for this; it's a relative bearing that depends on heading, not what's meant here, which is a fixed latitude or longitude crossing &mdash; terminology corrected going forward.) Any ETA to close that gap uses his <b>southing rate</b> (or easting/northing rate, once the relevant axis changes) &mdash; the component of velocity actually closing the gap &mdash; never raw SOG or STW directly. That's computed either empirically, from the latitude actually closed between two fixes over elapsed time, or instantaneously, by resolving current SOG onto the course direction; both are noted when given. Earlier entries' position lines were written more loosely than this and may be approximate; take the coordinates themselves as the source of truth throughout.
+  </footer>
+
+</div>
+
+</body></html>
